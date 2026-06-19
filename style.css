@@ -1,0 +1,167 @@
+:root{
+  --bg:#f3f6f5;
+  --card:#ffffff;
+  --teal:#4a9088;
+  --teal-dark:#357068;
+  --text:#2c3a38;
+  --muted:#7a8a87;
+  --open:#e8a33d;
+  --done:#4a9088;
+  --skipped:#9aa6a4;
+  --danger:#c0584b;
+  --radius:16px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  min-height:100vh;
+  -webkit-tap-highlight-color:transparent;
+}
+#app{
+  max-width:480px;
+  margin:0 auto;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:calc(env(safe-area-inset-top) + 14px) 18px 14px;
+  background:var(--teal);
+  color:#fff;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+.topbar h1{font-size:1.15rem;margin:0;font-weight:600;}
+.topbar-actions{display:flex;align-items:center;gap:10px;}
+.icon-btn{
+  background:rgba(255,255,255,0.15);
+  border:none;
+  border-radius:12px;
+  font-size:1.2rem;
+  padding:6px 10px;
+  color:#fff;
+  cursor:pointer;
+}
+.sync-badge{
+  font-size:0.78rem;
+  background:rgba(255,255,255,0.18);
+  border-radius:20px;
+  padding:5px 10px;
+  white-space:nowrap;
+}
+.sync-badge.error{background:#fff;color:var(--danger);}
+.sync-badge.pending{background:rgba(255,255,255,0.28);}
+main{flex:1;padding:18px;}
+
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:20px;
+  margin-bottom:16px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+
+.date-title{font-size:1rem;color:var(--muted);margin:0 0 14px;}
+
+.slot-list{display:flex;flex-direction:column;gap:10px;}
+.slot-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  width:100%;
+  text-align:left;
+  background:var(--card);
+  border:2px solid transparent;
+  border-radius:14px;
+  padding:16px 16px;
+  font-size:1.05rem;
+  cursor:pointer;
+}
+.slot-row.next{border-color:var(--open);}
+.slot-time{font-weight:600;font-size:1.1rem;}
+.slot-status{
+  font-size:0.85rem;
+  padding:5px 12px;
+  border-radius:20px;
+  font-weight:600;
+}
+.status-open{background:#fdecd3;color:#9a6418;}
+.status-future{background:#eef2f1;color:var(--muted);}
+.status-done{background:#dcf0ec;color:var(--teal-dark);}
+.status-skipped{background:#eceeed;color:var(--skipped);}
+
+.btn{
+  display:block;
+  width:100%;
+  padding:16px;
+  border:none;
+  border-radius:14px;
+  font-size:1.08rem;
+  font-weight:600;
+  cursor:pointer;
+  margin-top:12px;
+}
+.btn-primary{background:var(--teal);color:#fff;}
+.btn-secondary{background:#eceeed;color:var(--text);}
+.btn-danger-outline{background:#fff;color:var(--danger);border:2px solid var(--danger);}
+
+.question-card{display:flex;flex-direction:column;gap:18px;}
+.question-text{font-size:1.25rem;font-weight:600;line-height:1.4;margin:0;}
+.progress{font-size:0.85rem;color:var(--muted);}
+
+textarea, input[type=text]{
+  width:100%;
+  font-size:1.05rem;
+  padding:14px;
+  border-radius:12px;
+  border:1px solid #d7dedc;
+  font-family:inherit;
+  resize:none;
+}
+
+.slider-wrap{display:flex;flex-direction:column;gap:10px;}
+.slider-value{
+  font-size:2.4rem;
+  font-weight:700;
+  color:var(--teal-dark);
+  text-align:center;
+}
+input[type=range]{
+  width:100%;
+  height:44px;
+  accent-color:var(--teal);
+}
+.scale-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:0.8rem;}
+
+.confirm-icon{font-size:3rem;text-align:center;}
+.confirm-text{text-align:center;font-size:1.1rem;}
+
+label{font-weight:600;font-size:0.92rem;display:block;margin-bottom:6px;}
+.field{margin-bottom:16px;}
+.help{font-size:0.82rem;color:var(--muted);margin-top:6px;line-height:1.4;}
+
+.summary-block{background:#eef5f4;border-radius:12px;padding:14px;font-size:0.95rem;}
+.summary-block p{margin:4px 0;}
+
+.toast{
+  position:fixed;
+  bottom:calc(env(safe-area-inset-bottom) + 16px);
+  left:50%;
+  transform:translateX(-50%);
+  background:var(--text);
+  color:#fff;
+  padding:10px 18px;
+  border-radius:20px;
+  font-size:0.9rem;
+  z-index:50;
+  max-width:90%;
+  text-align:center;
+}
