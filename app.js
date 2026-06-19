@@ -18,9 +18,9 @@
   ];
   var QUESTIONS = [
     { key: "activity", text: "Wat ben je op dit moment aan het doen?", type: "select" },
+    { key: "context", text: "Wil je je antwoord nog toelichten? (optioneel)", type: "text", optional: true, placeholder: "Bijv. meer details over de situatie…" },
     { key: "stress", text: "Hoe hoog is je stressniveau op dit moment?", type: "scale", lo: "Geen stress", hi: "Extreem veel stress" },
-    { key: "fatigue", text: "Hoe vermoeid voel je je op dit moment?", type: "scale", lo: "Niet vermoeid", hi: "Extreem vermoeid" },
-    { key: "context", text: "Wil je nog iets toevoegen? (optioneel)", type: "text", optional: true, placeholder: "Bijv. extra details die je later nog van pas kunnen komen…" }
+    { key: "fatigue", text: "Hoe vermoeid voel je je op dit moment?", type: "scale", lo: "Niet vermoeid", hi: "Extreem vermoeid" }
   ];
 
   var state = {
