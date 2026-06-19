@@ -1,4 +1,4 @@
-var CACHE_NAME = "stress-checkin-v1";
+var CACHE_NAME = "stress-checkin-v2";
 var ASSETS = [
   "./",
   "./index.html",
@@ -30,24 +30,27 @@ self.addEventListener("activate", function (event) {
   self.clients.claim();
 });
 
+// Network-first for our own HTML/CSS/JS, so code updates show up
+// immediately. Cache is only the offline fallback.
 self.addEventListener("fetch", function (event) {
   var url = new URL(event.request.url);
-  // never intercept GitHub API calls - always go to network
   if (url.hostname === "api.github.com") return;
   if (event.request.method !== "GET") return;
+  if (url.origin !== location.origin) return;
 
   event.respondWith(
-    caches.match(event.request).then(function (cached) {
-      if (cached) return cached;
-      return fetch(event.request).then(function (response) {
-        if (response.ok && url.origin === location.origin) {
+    fetch(event.request)
+      .then(function (response) {
+        if (response.ok) {
           var clone = response.clone();
           caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, clone); });
         }
         return response;
-      }).catch(function () {
-        return caches.match("./index.html");
-      });
-    })
+      })
+      .catch(function () {
+        return caches.match(event.request).then(function (cached) {
+          return cached || caches.match("./index.html");
+        });
+      })
   );
 });
