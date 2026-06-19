@@ -374,9 +374,22 @@
     renderView();
   }
 
+  function cancelToHome() {
+    state.view = "home";
+    state.slot = null;
+    state.qIndex = 0;
+    state.answers = {};
+    renderView();
+  }
+
   function renderQuestion() {
     var q = QUESTIONS[state.qIndex];
     var wrap = h("div", { class: "card question-card" }, []);
+    wrap.appendChild(h("button", {
+      class: "icon-btn",
+      style: "align-self:flex-start;background:none;color:var(--muted);padding:0;font-size:0.9rem;",
+      onclick: cancelToHome
+    }, ["← Terug naar overzicht"]));
     wrap.appendChild(h("p", { class: "progress" }, ["Meting " + state.slot + " · vraag " + (state.qIndex + 1) + " van " + QUESTIONS.length]));
     wrap.appendChild(h("p", { class: "question-text" }, [q.text]));
 
