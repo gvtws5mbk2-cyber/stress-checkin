@@ -1,9 +1,11 @@
-var CACHE_NAME = "stress-checkin-v6";
+var CACHE_NAME = "stress-checkin-v7";
 var ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
+  "./trends.html",
+  "./trends.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

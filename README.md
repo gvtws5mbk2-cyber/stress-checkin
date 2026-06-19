@@ -125,10 +125,22 @@ stress-checkin/
 ├── index.html        één-pagina app
 ├── style.css         styling, mobiel-first
 ├── app.js            alle logica: vragenflow, opslag, GitHub-sync
+├── trends.html        trends- en analysepagina (leest data-repo read-only)
+├── trends.js          parse- en aggregatielogica voor trends.html
 ├── manifest.json      PWA-manifest
 ├── sw.js             service worker (offline cache)
 ├── icons/            app-iconen
 └── README.md
 ```
+
+### Trends-pagina
+
+Via ⚙️ Instellingen → "📊 Bekijk trends" open je `trends.html`. Die pagina
+heeft een eigen, los GitHub-token nodig (alleen-lezen "Contents" op de
+data-repo is voldoende) — dit token staat los van het schrijf-token van de
+hoofdapp en wordt apart in `localStorage` bewaard. De pagina haalt alle
+`metingen-dd-mm-jjjj.md`-bestanden op en toont gemiddelde stress/vermoeidheid
+per activiteit en per tijdvak, plus een overzicht van alle ingevulde
+Context-aantekeningen.
 
 Geen build-stap nodig — gewoon statische bestanden, gehost via GitHub Pages.

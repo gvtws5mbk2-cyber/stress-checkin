@@ -588,6 +588,9 @@
 
     wrap.appendChild(card);
 
+    var trendsLink = h("a", { href: "trends.html", class: "btn btn-secondary", style: "text-decoration:none;text-align:center;" }, ["📊 Bekijk trends"]);
+    wrap.appendChild(trendsLink);
+
     wrap.appendChild(h("button", {
       class: "btn btn-secondary",
       onclick: function () { state.view = "home"; renderView(); }
