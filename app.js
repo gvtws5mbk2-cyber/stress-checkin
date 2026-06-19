@@ -2,10 +2,25 @@
   "use strict";
 
   var SLOTS = ["09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00"];
+  var OTHER_LABEL = "Anders, namelijk: ...";
+  var ACTIVITY_OPTIONS = [
+    "Aan het werk",
+    "Vergadering / overleg",
+    "In de auto / onderweg",
+    "Fietsen",
+    "Wandeling",
+    "Huishouden",
+    "Pauze / ontspannen",
+    "Met familie/vrienden",
+    "Aan het sporten",
+    "Slaap / net wakker",
+    OTHER_LABEL
+  ];
   var QUESTIONS = [
-    { key: "activity", text: "Wat ben je op dit moment aan het doen?", type: "text" },
+    { key: "activity", text: "Wat ben je op dit moment aan het doen?", type: "select" },
     { key: "stress", text: "Hoe hoog is je stressniveau op dit moment?", type: "scale", lo: "Geen stress", hi: "Extreem veel stress" },
-    { key: "fatigue", text: "Hoe vermoeid voel je je op dit moment?", type: "scale", lo: "Niet vermoeid", hi: "Extreem vermoeid" }
+    { key: "fatigue", text: "Hoe vermoeid voel je je op dit moment?", type: "scale", lo: "Niet vermoeid", hi: "Extreem vermoeid" },
+    { key: "context", text: "Wil je nog iets toevoegen? (optioneel)", type: "text", optional: true, placeholder: "Bijv. extra details die je later nog van pas kunnen komen…" }
   ];
 
   var state = {
@@ -88,12 +103,15 @@
     if (entry.status === "skipped") {
       return "## " + slot + "\n\n- *(overgeslagen)*";
     }
-    return (
+    var block =
       "## " + slot + "\n\n" +
       "- **Activiteit:** " + entry.activity + "\n" +
       "- **Stress:** " + entry.stress + "/100\n" +
-      "- **Vermoeidheid:** " + entry.fatigue + "/100"
-    );
+      "- **Vermoeidheid:** " + entry.fatigue + "/100";
+    if (entry.context && entry.context.trim()) {
+      block += "\n- **Context:** " + entry.context.trim();
+    }
+    return block;
   }
 
   function buildHeader(dateKey) {
@@ -366,6 +384,8 @@
     state.slot = slot;
     state.qIndex = 0;
     state.answers = {};
+    state.activityChoice = null;
+    state.activityOtherText = "";
     renderView();
   }
 
@@ -374,6 +394,8 @@
     state.slot = null;
     state.qIndex = 0;
     state.answers = {};
+    state.activityChoice = null;
+    state.activityOtherText = "";
     renderView();
   }
 
@@ -388,10 +410,51 @@
     wrap.appendChild(h("p", { class: "question-text" }, [q.text]));
 
     var inputEl;
-    if (q.type === "text") {
-      inputEl = h("textarea", { rows: "3", placeholder: "Bijv. aan het werk, in de auto, pauze…", id: "qinput" }, []);
+    var isLast = state.qIndex === QUESTIONS.length - 1;
+    var nextLabel = isLast ? "Opslaan" : "Volgende";
+
+    if (q.type === "select") {
+      var select = h("select", { id: "qinput" }, ACTIVITY_OPTIONS.map(function (opt) {
+        return h("option", { value: opt }, [opt]);
+      }));
+      var prevChoice = state.activityChoice || ACTIVITY_OPTIONS[0];
+      select.value = prevChoice;
+      var otherInput = h("input", { type: "text", placeholder: "Typ hier wat je aan het doen was…" }, []);
+      otherInput.value = state.activityOtherText || "";
+      var otherWrap = h("div", { class: "field" }, [otherInput]);
+      otherWrap.style.display = prevChoice === OTHER_LABEL ? "" : "none";
+      select.addEventListener("change", function () {
+        state.activityChoice = select.value;
+        otherWrap.style.display = select.value === OTHER_LABEL ? "" : "none";
+        if (select.value === OTHER_LABEL) otherInput.focus();
+      });
+      wrap.appendChild(h("div", { class: "field" }, [select]));
+      wrap.appendChild(otherWrap);
+
+      wrap.appendChild(h("button", {
+        class: "btn btn-primary",
+        onclick: function () {
+          state.activityChoice = select.value;
+          state.activityOtherText = otherInput.value.trim();
+          var val = select.value === OTHER_LABEL ? otherInput.value.trim() : select.value;
+          if (!val) {
+            showToast("Vul iets in, of gebruik Overslaan.");
+            return;
+          }
+          state.answers[q.key] = val;
+          if (isLast) saveMeasurement(state.slot, state.answers);
+          else { state.qIndex++; renderView(); }
+        }
+      }, [nextLabel]));
+    } else if (q.type === "text") {
+      inputEl = h("textarea", { rows: "3", placeholder: q.placeholder || "Bijv. aan het werk, in de auto, pauze…", id: "qinput" }, []);
       inputEl.value = state.answers[q.key] || "";
       wrap.appendChild(h("div", { class: "field" }, [inputEl]));
+
+      wrap.appendChild(h("button", {
+        class: "btn btn-primary",
+        onclick: function () { handleNext(q, inputEl, isLast); }
+      }, [nextLabel]));
     } else {
       var initial = state.answers[q.key] !== undefined ? state.answers[q.key] : 30;
       var valueDisplay = h("div", { class: "slider-value", id: "valDisplay" }, [String(initial)]);
@@ -400,13 +463,12 @@
       var labels = h("div", { class: "scale-labels" }, [h("span", {}, [q.lo]), h("span", {}, [q.hi])]);
       wrap.appendChild(h("div", { class: "slider-wrap" }, [valueDisplay, range, labels]));
       inputEl = range;
-    }
 
-    var isLast = state.qIndex === QUESTIONS.length - 1;
-    wrap.appendChild(h("button", {
-      class: "btn btn-primary",
-      onclick: function () { handleNext(q, inputEl, isLast); }
-    }, [isLast ? "Opslaan" : "Volgende"]));
+      wrap.appendChild(h("button", {
+        class: "btn btn-primary",
+        onclick: function () { handleNext(q, inputEl, isLast); }
+      }, [nextLabel]));
+    }
 
     wrap.appendChild(h("button", {
       class: "btn btn-danger-outline",
@@ -425,7 +487,7 @@
 
   function handleNext(q, inputEl, isLast) {
     var val = q.type === "text" ? inputEl.value.trim() : parseInt(inputEl.value, 10);
-    if (q.type === "text" && !val) {
+    if (q.type === "text" && !val && !q.optional) {
       showToast("Vul iets in, of gebruik Overslaan.");
       return;
     }
@@ -445,6 +507,7 @@
       activity: answers.activity,
       stress: answers.stress,
       fatigue: answers.fatigue,
+      context: answers.context || "",
       timestamp: new Date().toISOString(),
       synced: false
     });

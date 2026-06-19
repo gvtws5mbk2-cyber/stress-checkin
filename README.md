@@ -92,9 +92,10 @@ Per ingevulde meting:
 ```
 ## HH:MM
 
-- **Activiteit:** [antwoord]
+- **Activiteit:** [gekozen activiteit, of zelf-getypte tekst bij "Anders, namelijk: ..."]
 - **Stress:** [getal]/100
 - **Vermoeidheid:** [getal]/100
+- **Context:** [optionele toelichting] (regel ontbreekt volledig als dit veld leeg is)
 ```
 Per overgeslagen meting:
 ```
@@ -103,7 +104,9 @@ Per overgeslagen meting:
 - *(overgeslagen)*
 ```
 `HH:MM` is het vaste tijdvak (09:00, 11:00, ... 21:00), niet de werkelijke
-kloktijd van invullen.
+kloktijd van invullen. Activiteit is een vaste keuzelijst met als laatste optie
+"Anders, namelijk: ..." — kies je die, dan verschijnt er een tekstveld en wordt
+je eigen tekst opgeslagen (niet de letterlijke optie-tekst).
 
 ## 6. Offline gedrag
 

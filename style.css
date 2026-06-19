@@ -186,7 +186,7 @@ main{flex:1;padding:20px;}
 }
 .progress{font-size:0.85rem;color:var(--muted);letter-spacing:0.01em;}
 
-textarea, input[type=text]{
+textarea, input[type=text], select{
   width:100%;
   font-size:1.05rem;
   padding:14px;
@@ -196,6 +196,14 @@ textarea, input[type=text]{
   font-family:inherit;
   resize:none;
   color:var(--ink);
+}
+select{
+  -webkit-appearance:none;
+  appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'><path d='M1 1l6 6 6-6' fill='none' stroke='%238c8270' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat:no-repeat;
+  background-position:right 16px center;
+  padding-right:40px;
 }
 
 .slider-wrap{display:flex;flex-direction:column;gap:10px;}
