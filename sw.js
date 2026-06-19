@@ -1,4 +1,4 @@
-var CACHE_NAME = "stress-checkin-v2";
+var CACHE_NAME = "stress-checkin-v3";
 var ASSETS = [
   "./",
   "./index.html",
