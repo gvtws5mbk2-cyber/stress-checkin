@@ -105,15 +105,15 @@ Per overgeslagen meting:
 `HH:MM` is het vaste tijdvak (09:00, 11:00, ... 21:00), niet de werkelijke
 kloktijd van invullen.
 
-## 6. Offline gedrag en handmatige export
+## 6. Offline gedrag
 
 - Lukt het wegschrijven naar GitHub niet (geen internet, token verlopen), dan
   blijft de meting lokaal staan en wordt automatisch opnieuw geprobeerd zodra
   er weer verbinding is (en elke minuut op de achtergrond).
 - De syncstatus rechtsboven toont: **✅ gesynct**, **⏳ wacht (n)**, of
   **⚠️ fout** (bijv. ongeldig token).
-- Met de knop **"Exporteer vandaag"** op het startscherm download je het
-  dagbestand van vandaag altijd ook lokaal, als handmatige fallback.
+- Er is geen handmatige exportstap nodig: elke meting wordt automatisch naar
+  de data-repo geschreven, zodra er weer verbinding is.
 
 ## Projectstructuur
 

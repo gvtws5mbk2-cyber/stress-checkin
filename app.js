@@ -358,11 +358,6 @@
       ]));
     }
 
-    wrap.appendChild(h("button", {
-      class: "btn btn-secondary",
-      onclick: exportToday
-    }, ["⬇️ Exporteer vandaag"]));
-
     return wrap;
   }
 
@@ -533,18 +528,6 @@
     }, ["← Terug"]));
 
     return wrap;
-  }
-
-  function exportToday() {
-    var dk = todayKey();
-    var md = buildFullDayMarkdown(dk);
-    var blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "metingen-" + dk + ".md";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
 
   // ---------- init ----------
