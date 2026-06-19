@@ -1,4 +1,4 @@
-var CACHE_NAME = "stress-checkin-v4";
+var CACHE_NAME = "stress-checkin-v5";
 var ASSETS = [
   "./",
   "./index.html",
@@ -39,7 +39,7 @@ self.addEventListener("fetch", function (event) {
   if (url.origin !== location.origin) return;
 
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-store" })
       .then(function (response) {
         if (response.ok) {
           var clone = response.clone();

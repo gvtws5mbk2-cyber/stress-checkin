@@ -21,7 +21,17 @@
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
-button{color:inherit;font-family:inherit;}
+button{
+  color:inherit;
+  font-family:inherit;
+  -webkit-appearance:none;
+  appearance:none;
+  -webkit-tap-highlight-color:transparent;
+}
+input[type=text],textarea{
+  -webkit-appearance:none;
+  appearance:none;
+}
 body{
   background:var(--bg);
   color:var(--ink);
