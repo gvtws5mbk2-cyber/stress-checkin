@@ -21,6 +21,7 @@
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
+button{color:inherit;font-family:inherit;}
 body{
   background:var(--bg);
   color:var(--ink);
@@ -122,9 +123,10 @@ main{flex:1;padding:20px;}
   padding:16px 18px;
   font-size:1.05rem;
   cursor:pointer;
+  color:var(--ink);
 }
 .slot-row.next{border-color:var(--gold);background:#fffaf0;}
-.slot-time{font-weight:600;font-size:1.1rem;font-family:var(--serif);}
+.slot-time{font-weight:600;font-size:1.1rem;font-family:var(--serif);color:var(--ink);}
 .slot-status{
   font-size:0.82rem;
   padding:6px 13px;

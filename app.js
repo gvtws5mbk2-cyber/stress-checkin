@@ -487,6 +487,9 @@
     var wrap = h("div", {}, []);
 
     var card = h("div", { class: "card" }, []);
+    card.appendChild(h("div", { class: "topbar-row-sub", style: "margin-bottom:14px;" }, [
+      h("span", { id: "syncBadge", class: "sync-badge", title: "Syncstatus" }, ["…"])
+    ]));
     card.appendChild(h("p", { class: "help" }, [
       "Plak hier een fine-grained GitHub Personal Access Token met alleen de permissie ",
       h("strong", {}, ["Contents: Read and write"]),
