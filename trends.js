@@ -172,6 +172,14 @@
     return el;
   }
 
+  function showToast(msg) {
+    var existing = document.querySelector(".toast");
+    if (existing) existing.remove();
+    var t = h("div", { class: "toast" }, [msg]);
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 3200);
+  }
+
   function barRow(label, count, avgStress, avgFatigue) {
     return h("div", { class: "trend-row" }, [
       h("div", { class: "trend-label" }, [label + " (" + count + "×)"]),
@@ -203,7 +211,12 @@
       class: "btn btn-primary",
       onclick: function () {
         var newCfg = { owner: ownerInput.value.trim(), repo: repoInput.value.trim(), token: tokenInput.value.trim() };
+        if (!newCfg.owner || !newCfg.repo || !newCfg.token) {
+          showToast("Vul GitHub-gebruikersnaam, repo-naam en token allemaal in.");
+          return;
+        }
         saveConfig(newCfg);
+        showToast("Instellingen opgeslagen, data wordt geladen…");
         loadAndRender(newCfg);
       }
     }, ["Opslaan & laden"]));
@@ -229,7 +242,7 @@
       return;
     }
     if (state.error) {
-      viewEl.appendChild(h("div", { class: "card" }, [h("p", { class: "help" }, ["Fout bij laden: " + state.error])]));
+      viewEl.appendChild(h("div", { class: "card" }, [h("p", { style: "color:var(--danger);font-weight:600;margin:0;" }, ["⚠️ Fout bij laden: " + state.error])]));
       return;
     }
     if (!state.entries) {
