@@ -1,0 +1,6 @@
+[
+  { "date": "2026-06-22", "start": "09:00", "end": "11:00", "summary": "Deep work" },
+  { "date": "2026-06-22", "start": "13:00", "end": "14:00", "summary": "Boodschappen" },
+  { "date": "2026-06-24", "start": "10:00", "end": "11:30", "summary": "Afspraak psycholoog" },
+  { "date": "2026-06-26", "start": "15:00", "end": "16:00", "summary": "Wandeling" }
+]
