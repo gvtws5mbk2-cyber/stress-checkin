@@ -40,6 +40,13 @@
 
   function todayKey() { return dateKeyFor(new Date()); }
 
+  var DAY_ABBR = ["Zo", "Ma", "Di", "Wo", "Do", "Vr", "Za"];
+
+  function todayShortLabel() {
+    var d = new Date();
+    return DAY_ABBR[d.getDay()] + " " + pad(d.getDate()) + "-" + pad(d.getMonth() + 1);
+  }
+
   function nowHHMM() {
     var d = new Date();
     return pad(d.getHours()) + ":" + pad(d.getMinutes());
@@ -154,6 +161,14 @@
       });
     });
     return n;
+  }
+
+  function updateStatusDot() {
+    var dot = document.getElementById("statusDot");
+    if (!dot) return;
+    var allDone = nextOpenSlot(todayKey()) === null;
+    dot.className = "status-dot" + (allDone ? " all-done" : "");
+    dot.title = allDone ? "Alle metingen van vandaag zijn afgehandeld" : "Er staat nog een meting open vandaag";
   }
 
   function updateSyncBadge() {
@@ -339,6 +354,7 @@
     else if (state.view === "confirm") viewEl.appendChild(renderConfirm());
     else if (state.view === "settings") viewEl.appendChild(renderSettings());
     updateSyncBadge();
+    updateStatusDot();
   }
 
   function statusLabel(status) {
@@ -349,7 +365,7 @@
     var dk = todayKey();
     var next = nextOpenSlot(dk);
     var wrap = h("div", {}, []);
-    wrap.appendChild(h("p", { class: "date-title" }, ["Vandaag · " + dk]));
+    wrap.appendChild(h("p", { class: "date-title" }, [todayShortLabel()]));
 
     var list = h("div", { class: "slot-list" }, []);
     SLOTS.forEach(function (slot) {
@@ -370,10 +386,6 @@
         class: "btn btn-primary",
         onclick: function () { openSlot(next); }
       }, ["Start meting " + next]));
-    } else {
-      wrap.appendChild(h("div", { class: "card" }, [
-        h("p", { class: "confirm-text" }, ["Alle metingen van vandaag zijn afgehandeld. 🌿"])
-      ]));
     }
 
     return wrap;

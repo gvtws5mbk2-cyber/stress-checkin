@@ -65,22 +65,42 @@ body{
   justify-content:space-between;
 }
 .topbar-row-sub{justify-content:flex-start;}
+.topbar-row-3col{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+}
+.topbar-right{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+}
 .title-btn{
   background:none;
   border:none;
   padding:0;
   margin:0;
   cursor:pointer;
-  text-align:left;
+  text-align:center;
+  justify-self:center;
 }
 .topbar h1{
   font-family:var(--serif);
-  font-size:1.5rem;
+  font-size:1.4rem;
   margin:0;
   font-weight:600;
   letter-spacing:-0.01em;
   color:var(--ink);
 }
+.status-dot{
+  width:13px;
+  height:13px;
+  border-radius:50%;
+  background:var(--danger);
+  flex-shrink:0;
+}
+.status-dot.all-done{background:#5e8c63;}
 .icon-btn{
   background:var(--card);
   border:1px solid rgba(46,42,34,0.1);
@@ -122,8 +142,8 @@ main{flex:1;padding:20px;}
 
 .date-title{
   font-family:var(--serif);
-  font-size:1.7rem;
-  color:var(--ink);
+  font-size:1.15rem;
+  color:var(--muted);
   margin:4px 0 18px;
   font-weight:600;
 }

@@ -15,9 +15,13 @@
 <body>
 <div id="app">
   <header class="topbar">
-    <div class="topbar-row">
-      <h1 id="homeBtn" class="title-btn" role="button" aria-label="Naar startscherm">Stress Check-in</h1>
-      <button id="settingsBtn" class="icon-btn" aria-label="Instellingen">⚙️</button>
+    <div class="topbar-row topbar-row-3col">
+      <span></span>
+      <h1 id="homeBtn" class="title-btn" role="button" aria-label="Naar startscherm">Check-in</h1>
+      <div class="topbar-right">
+        <span id="statusDot" class="status-dot" title="Status van vandaag"></span>
+        <button id="settingsBtn" class="icon-btn" aria-label="Instellingen">⚙️</button>
+      </div>
     </div>
   </header>
   <main id="view"></main>
