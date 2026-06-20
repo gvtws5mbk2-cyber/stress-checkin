@@ -389,7 +389,7 @@
     renderView();
   }
 
-  function cancelToHome() {
+  function goHome() {
     state.view = "home";
     state.slot = null;
     state.qIndex = 0;
@@ -404,7 +404,7 @@
     var wrap = h("div", { class: "card question-card" }, []);
     wrap.appendChild(h("button", {
       class: "link-back",
-      onclick: cancelToHome
+      onclick: goHome
     }, ["← Terug naar overzicht"]));
     wrap.appendChild(h("p", { class: "progress" }, ["Meting " + state.slot + " · vraag " + (state.qIndex + 1) + " van " + QUESTIONS.length]));
     wrap.appendChild(h("p", { class: "question-text" }, [q.text]));
@@ -540,7 +540,7 @@
     }
     wrap.appendChild(h("button", {
       class: "btn btn-primary",
-      onclick: function () { state.view = "home"; renderView(); }
+      onclick: goHome
     }, ["Terug naar overzicht"]));
     return wrap;
   }
@@ -593,7 +593,7 @@
 
     wrap.appendChild(h("button", {
       class: "btn btn-secondary",
-      onclick: function () { state.view = "home"; renderView(); }
+      onclick: goHome
     }, ["← Terug"]));
 
     return wrap;
@@ -607,6 +607,7 @@
       state.view = "settings";
       renderView();
     });
+    document.getElementById("homeBtn").addEventListener("click", goHome);
     renderView();
     processSyncQueue();
     window.addEventListener("online", processSyncQueue);
