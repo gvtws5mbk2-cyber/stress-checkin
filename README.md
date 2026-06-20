@@ -104,13 +104,26 @@ Per overgeslagen meting:
 - *(overgeslagen)*
 ```
 `HH:MM` is het vaste tijdvak (09:00, 11:00, ... 21:00), niet de werkelijke
-kloktijd van invullen. Activiteit is een vaste keuzelijst; sommige opties
-("Actief ontspannen", "Ontspannen (passief)") hebben een subkeuzelijst die
-daarna verschijnt (bijv. Fietsen, Wandelen, Sporten onder "Actief ontspannen";
-Lezen, Serie of film kijken, Gamen onder "Ontspannen (passief)"). Alleen de
-uiteindelijke (sub)keuze komt in `**Activiteit:**` terecht, niet de
-hoofdcategorie. Kies je "Anders, namelijk: ..." (op hoofd- of subniveau), dan
-verschijnt een tekstveld en wordt je eigen tekst opgeslagen.
+kloktijd van invullen. Activiteit is een vaste keuzelijst waarbij bijna elke
+hoofdcategorie een subkeuzelijst heeft die daarna verschijnt:
+
+- **Aan het werk** → Op kantoor / Thuis / Extern bij klant
+- **Vergadering / overleg** → Op kantoor / Online (video) / Telefonisch
+- **In de auto / onderweg** → Naar werk / Naar school / Boodschappen /
+  Familie of vrienden bezoeken / Vrije tijd / uitje
+- **Huishouden** → Schoonmaken / Boodschappen doen / Koken / Wassen of
+  opruimen / Administratie of regelen
+- **Actief ontspannen** → Fietsen / Wandelen / Sporten
+- **Ontspannen (passief)** → Lezen / Serie of film kijken / Gamen
+- **Met familie/vrienden** → Samen eten / Kletsen & ontspannen / Activiteit
+  samen / Bellen
+- **Slaap / net wakker** → Net wakker / Net naar bed / Powernap overdag
+
+Elke subkeuzelijst heeft ook een "Anders, namelijk: ..."-optie, net als de
+hoofdlijst zelf. Alleen de uiteindelijke (sub)keuze komt in
+`**Activiteit:**` terecht, niet de hoofdcategorie — dus bijv. "Fietsen", niet
+"Actief ontspannen: Fietsen". Kies je "Anders, namelijk: ..." (op hoofd- of
+subniveau), dan verschijnt een tekstveld en wordt je eigen tekst opgeslagen.
 
 ## 6. Offline gedrag
 

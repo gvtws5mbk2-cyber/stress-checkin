@@ -4,14 +4,14 @@
   var SLOTS = ["09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00"];
   var OTHER_LABEL = "Anders, namelijk: ...";
   var ACTIVITY_OPTIONS = [
-    "Aan het werk",
-    "Vergadering / overleg",
-    "In de auto / onderweg",
-    "Huishouden",
+    { label: "Aan het werk", sub: ["Op kantoor", "Thuis", "Extern bij klant", OTHER_LABEL] },
+    { label: "Vergadering / overleg", sub: ["Op kantoor", "Online (video)", "Telefonisch", OTHER_LABEL] },
+    { label: "In de auto / onderweg", sub: ["Naar werk", "Naar school", "Boodschappen", "Familie of vrienden bezoeken", "Vrije tijd / uitje", OTHER_LABEL] },
+    { label: "Huishouden", sub: ["Schoonmaken", "Boodschappen doen", "Koken", "Wassen / opruimen", "Administratie / regelen", OTHER_LABEL] },
     { label: "Actief ontspannen", sub: ["Fietsen", "Wandelen", "Sporten", OTHER_LABEL] },
     { label: "Ontspannen (passief)", sub: ["Lezen", "Serie of film kijken", "Gamen", OTHER_LABEL] },
-    "Met familie/vrienden",
-    "Slaap / net wakker",
+    { label: "Met familie/vrienden", sub: ["Samen eten", "Kletsen & ontspannen", "Activiteit samen", "Bellen", OTHER_LABEL] },
+    { label: "Slaap / net wakker", sub: ["Net wakker", "Net naar bed", "Powernap overdag", OTHER_LABEL] },
     OTHER_LABEL
   ];
   var QUESTIONS = [
