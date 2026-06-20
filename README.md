@@ -104,9 +104,13 @@ Per overgeslagen meting:
 - *(overgeslagen)*
 ```
 `HH:MM` is het vaste tijdvak (09:00, 11:00, ... 21:00), niet de werkelijke
-kloktijd van invullen. Activiteit is een vaste keuzelijst met als laatste optie
-"Anders, namelijk: ..." — kies je die, dan verschijnt er een tekstveld en wordt
-je eigen tekst opgeslagen (niet de letterlijke optie-tekst).
+kloktijd van invullen. Activiteit is een vaste keuzelijst; sommige opties
+("Actief ontspannen", "Ontspannen (passief)") hebben een subkeuzelijst die
+daarna verschijnt (bijv. Fietsen, Wandelen, Sporten onder "Actief ontspannen";
+Lezen, Serie of film kijken, Gamen onder "Ontspannen (passief)"). Alleen de
+uiteindelijke (sub)keuze komt in `**Activiteit:**` terecht, niet de
+hoofdcategorie. Kies je "Anders, namelijk: ..." (op hoofd- of subniveau), dan
+verschijnt een tekstveld en wordt je eigen tekst opgeslagen.
 
 ## 6. Offline gedrag
 

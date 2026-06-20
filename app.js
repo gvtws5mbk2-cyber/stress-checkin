@@ -7,12 +7,10 @@
     "Aan het werk",
     "Vergadering / overleg",
     "In de auto / onderweg",
-    "Fietsen",
-    "Wandeling",
     "Huishouden",
-    "Pauze / ontspannen",
+    { label: "Actief ontspannen", sub: ["Fietsen", "Wandelen", "Sporten", OTHER_LABEL] },
+    { label: "Ontspannen (passief)", sub: ["Lezen", "Serie of film kijken", "Gamen", OTHER_LABEL] },
     "Met familie/vrienden",
-    "Aan het sporten",
     "Slaap / net wakker",
     OTHER_LABEL
   ];
@@ -397,6 +395,7 @@
     state.qIndex = 0;
     state.answers = {};
     state.activityChoice = null;
+    state.activitySubChoice = null;
     state.activityOtherText = "";
     renderView();
   }
@@ -407,6 +406,7 @@
     state.qIndex = 0;
     state.answers = {};
     state.activityChoice = null;
+    state.activitySubChoice = null;
     state.activityOtherText = "";
     renderView();
   }
@@ -426,29 +426,81 @@
     var nextLabel = isLast ? "Opslaan" : "Volgende";
 
     if (q.type === "select") {
-      var select = h("select", { id: "qinput" }, ACTIVITY_OPTIONS.map(function (opt) {
-        return h("option", { value: opt }, [opt]);
+      var topLabels = ACTIVITY_OPTIONS.map(function (opt) { return typeof opt === "string" ? opt : opt.label; });
+
+      function getTopOption(label) {
+        for (var i = 0; i < ACTIVITY_OPTIONS.length; i++) {
+          var o = ACTIVITY_OPTIONS[i];
+          if ((typeof o === "string" ? o : o.label) === label) return o;
+        }
+        return null;
+      }
+
+      var select = h("select", { id: "qinput" }, topLabels.map(function (label) {
+        return h("option", { value: label }, [label]);
       }));
-      var prevChoice = state.activityChoice || ACTIVITY_OPTIONS[0];
+      var prevChoice = (state.activityChoice && topLabels.indexOf(state.activityChoice) !== -1) ? state.activityChoice : topLabels[0];
       select.value = prevChoice;
+
       var otherInput = h("input", { type: "text", placeholder: "Typ hier wat je aan het doen was…" }, []);
       otherInput.value = state.activityOtherText || "";
       var otherWrap = h("div", { class: "field" }, [otherInput]);
-      otherWrap.style.display = prevChoice === OTHER_LABEL ? "" : "none";
+
+      var subWrap = h("div", {}, []);
+      var subSelect = null;
+
+      function leafValue() {
+        return subSelect ? subSelect.value : select.value;
+      }
+
+      function refreshOtherVisibility() {
+        var isOther = leafValue() === OTHER_LABEL;
+        otherWrap.style.display = isOther ? "" : "none";
+      }
+
+      function refreshLevel2() {
+        subWrap.innerHTML = "";
+        subSelect = null;
+        var topOpt = getTopOption(select.value);
+        if (topOpt && typeof topOpt === "object") {
+          var prevSub = (state.activitySubChoice && topOpt.sub.indexOf(state.activitySubChoice) !== -1) ? state.activitySubChoice : topOpt.sub[0];
+          subSelect = h("select", {}, topOpt.sub.map(function (s) {
+            return h("option", { value: s }, [s]);
+          }));
+          subSelect.value = prevSub;
+          state.activitySubChoice = prevSub;
+          subWrap.appendChild(h("div", { class: "field" }, [subSelect]));
+          subSelect.addEventListener("change", function () {
+            state.activitySubChoice = subSelect.value;
+            refreshOtherVisibility();
+            if (subSelect.value === OTHER_LABEL) otherInput.focus();
+          });
+        } else {
+          state.activitySubChoice = null;
+        }
+        refreshOtherVisibility();
+      }
+
       select.addEventListener("change", function () {
         state.activityChoice = select.value;
-        otherWrap.style.display = select.value === OTHER_LABEL ? "" : "none";
-        if (select.value === OTHER_LABEL) otherInput.focus();
+        state.activitySubChoice = null;
+        refreshLevel2();
+        if (!subSelect && select.value === OTHER_LABEL) otherInput.focus();
       });
+
       wrap.appendChild(h("div", { class: "field" }, [select]));
+      wrap.appendChild(subWrap);
       wrap.appendChild(otherWrap);
+      refreshLevel2();
+      state.activityChoice = select.value;
 
       wrap.appendChild(h("button", {
         class: "btn btn-primary",
         onclick: function () {
           state.activityChoice = select.value;
+          state.activitySubChoice = subSelect ? subSelect.value : null;
           state.activityOtherText = otherInput.value.trim();
-          var val = select.value === OTHER_LABEL ? otherInput.value.trim() : select.value;
+          var val = leafValue() === OTHER_LABEL ? otherInput.value.trim() : leafValue();
           if (!val) {
             showToast("Vul iets in, of gebruik Overslaan.");
             return;
