@@ -6,6 +6,8 @@
   var ACTIVITY_OPTIONS = [
     { label: "Aan het werk", sub: ["Op kantoor", "Thuis", "Extern bij klant", OTHER_LABEL] },
     { label: "Vergadering / overleg", sub: ["Op kantoor", "Online (video)", "Telefonisch", OTHER_LABEL] },
+    { label: "School / studeren", sub: ["Les / college", "Zelfstudie / huiswerk", "Toets / tentamen", OTHER_LABEL] },
+    { label: "Afspraak (zorg/arts/psycholoog e.d.)", sub: ["Psycholoog", "Huisarts / specialist", "Andere zorgafspraak", OTHER_LABEL] },
     { label: "In de auto / onderweg", sub: ["Naar werk", "Naar school", "Boodschappen", "Familie of vrienden bezoeken", "Vrije tijd / uitje", OTHER_LABEL] },
     { label: "Huishouden", sub: ["Schoonmaken", "Boodschappen doen", "Koken", "Wassen / opruimen", "Administratie / regelen", OTHER_LABEL] },
     { label: "Actief ontspannen", sub: ["Fietsen", "Wandelen", "Sporten", OTHER_LABEL] },

@@ -109,6 +109,10 @@ hoofdcategorie een subkeuzelijst heeft die daarna verschijnt:
 
 - **Aan het werk** → Op kantoor / Thuis / Extern bij klant
 - **Vergadering / overleg** → Op kantoor / Online (video) / Telefonisch
+- **School / studeren** → Les of college / Zelfstudie of huiswerk / Toets of
+  tentamen
+- **Afspraak (zorg/arts/psycholoog e.d.)** → Psycholoog / Huisarts of
+  specialist / Andere zorgafspraak
 - **In de auto / onderweg** → Naar werk / Naar school / Boodschappen /
   Familie of vrienden bezoeken / Vrije tijd / uitje
 - **Huishouden** → Schoonmaken / Boodschappen doen / Koken / Wassen of
