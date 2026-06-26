@@ -276,7 +276,7 @@
       .then(function () {
         syncing = false;
         updateSyncBadge();
-        if (state.view === "settings") renderView();
+        if (state.view === "settings" || state.view === "confirm") renderView();
       });
   }
 
@@ -578,9 +578,9 @@
       timestamp: new Date().toISOString(),
       synced: false
     });
+    processSyncQueue();
     state.view = "confirm";
     renderView();
-    processSyncQueue();
   }
 
   function skipCurrent() {
@@ -590,9 +590,9 @@
       timestamp: new Date().toISOString(),
       synced: false
     });
+    processSyncQueue();
     state.view = "confirm";
     renderView();
-    processSyncQueue();
   }
 
   function renderConfirm() {
@@ -605,11 +605,21 @@
       wrap.appendChild(h("p", { class: "confirm-icon" }, ["⏭️"]));
       wrap.appendChild(h("p", { class: "confirm-text" }, ["Meting " + state.slot + " is overgeslagen."]));
     }
+    wrap.appendChild(h("p", { id: "confirmSyncStatus", class: "help", style: "text-align:center;" }, [confirmSyncStatusText()]));
     wrap.appendChild(h("button", {
       class: "btn btn-primary",
       onclick: goHome
     }, ["Terug naar overzicht"]));
     return wrap;
+  }
+
+  function confirmSyncStatusText() {
+    var cfg = loadConfig();
+    if (!cfg.token) return "⚙️ Geen GitHub-sync ingesteld — meting staat alleen lokaal opgeslagen.";
+    if (syncState.status === "syncing") return "⏳ Bezig met opslaan naar GitHub… even geduld voordat je de app sluit.";
+    if (syncState.status === "error") return "⚠️ Sync mislukt (" + (syncState.message || "onbekende fout") + ") — blijft in de wachtrij en probeert later opnieuw.";
+    if (pendingCount() > 0) return "⏳ Nog niet gesynct, wordt opnieuw geprobeerd zodra er verbinding is.";
+    return "✅ Opgeslagen op GitHub — veilig om de app te sluiten.";
   }
 
   function renderSettings() {
