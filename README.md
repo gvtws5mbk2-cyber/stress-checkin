@@ -113,11 +113,12 @@ hoofdcategorie een subkeuzelijst heeft die daarna verschijnt:
   tentamen
 - **Afspraak (zorg/arts/psycholoog e.d.)** → Psycholoog / Huisarts of
   specialist / Andere zorgafspraak
-- **In de auto / onderweg** → Naar werk / Naar school / Boodschappen /
-  Familie of vrienden bezoeken / Vrije tijd / uitje
+- **In de auto / onderweg** → Naar werk / Naar school / Naar huis /
+  Boodschappen / Familie of vrienden bezoeken / Vrije tijd / uitje
 - **Huishouden** → Schoonmaken / Boodschappen doen / Koken / Wassen of
   opruimen / Administratie of regelen
-- **Actief ontspannen** → Fietsen / Wandelen / Sporten
+- **Eten** → Ontbijt / Lunch / Avondeten / Tussendoortje
+- **Actief ontspannen** → Fietsen / Wandelen / Sporten / Zwemmen
 - **Ontspannen (passief)** → Lezen / Serie of film kijken / Gamen
 - **Met familie/vrienden** → Samen eten / Kletsen & ontspannen / Activiteit
   samen / Bellen
