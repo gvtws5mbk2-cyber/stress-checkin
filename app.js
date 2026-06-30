@@ -17,6 +17,27 @@
     { label: "Slaap / net wakker", sub: ["Net wakker", "Net naar bed", "Powernap overdag", OTHER_LABEL] },
     OTHER_LABEL
   ];
+  var GSCHEMA_EMOTIONS = [
+    "angst", "boos", "verdrietig", "somber", "gespannen",
+    "nerveus", "schaamte", "schuldig", "machteloos", "opgelucht", "blij"
+  ];
+
+  var GSCHEMA_STEPS = [
+    { key: "gebeurtenis", text: "Wat gebeurde er precies?", type: "text",
+      hint: "Beschrijf zo feitelijk als een camera — zonder interpretatie of gevoel.",
+      placeholder: "Bijv. 'Ik ontving een e-mail van mijn baas dat ik langs moest komen.'" },
+    { key: "gedachten", text: "Welke gedachten schoten er door je hoofd?", type: "text",
+      hint: "Schrijf de automatische gedachte concreet uit — niet als vraag, maar als het ergste scenario.",
+      placeholder: "Bijv. 'Ik word ontslagen.' of 'Niemand mag me echt.'" },
+    { key: "gevoel", text: "Wat voelde je, en hoe intens?", type: "emotion" },
+    { key: "gedrag", text: "Wat deed je, of wat had je de neiging te doen?", type: "text",
+      hint: "",
+      placeholder: "Bijv. 'Ik liep weg.' of 'Ik zei niets en deed alsof er niets was.'" },
+    { key: "gevolg", text: "Wat was het gevolg?", type: "text",
+      hint: "",
+      placeholder: "Bijv. 'Ik voelde me daarna opgelucht, maar ook schuldig.'" }
+  ];
+
   var QUESTIONS = [
     { key: "activity", text: "Wat ben je op dit moment aan het doen?", type: "select" },
     { key: "context", text: "Wil je je antwoord nog toelichten? (optioneel)", type: "text", optional: true, placeholder: "Bijv. meer details over de situatie…" },
@@ -28,7 +49,11 @@
     view: "home",
     slot: null,
     qIndex: 0,
-    answers: {}
+    answers: {},
+    gStep: 0,
+    gAnswers: {},
+    gSelectedEmotions: [],
+    gIntensity: 50
   };
 
   // ---------- date / storage helpers ----------
@@ -77,6 +102,15 @@
     localStorage.setItem("githubConfig", JSON.stringify(cfg));
   }
 
+  function loadGschemaData() {
+    try { return JSON.parse(localStorage.getItem("gschemaData") || "[]"); }
+    catch (e) { return []; }
+  }
+
+  function saveGschemaData(data) {
+    localStorage.setItem("gschemaData", JSON.stringify(data));
+  }
+
   function getEntry(dateKey, slot) {
     var data = loadData();
     return (data[dateKey] && data[dateKey][slot]) || null;
@@ -106,6 +140,18 @@
   }
 
   // ---------- markdown ----------
+
+  function buildGschemaBlock(entry) {
+    var d = new Date(entry.timestamp);
+    var timeStr = pad(d.getHours()) + ":" + pad(d.getMinutes());
+    function safe(s) { return (s || "").replace(/\r?\n/g, " ").trim(); }
+    return "## " + timeStr + "\n\n" +
+      "- **Gebeurtenis:** " + safe(entry.gebeurtenis) + "\n" +
+      "- **Gedachten:** " + safe(entry.gedachten) + "\n" +
+      "- **Gevoel:** " + (entry.gevoelens || []).join(", ") + " (" + entry.intensiteit + "/100)\n" +
+      "- **Gedrag:** " + safe(entry.gedrag) + "\n" +
+      "- **Gevolg:** " + safe(entry.gevolg);
+  }
 
   function buildBlock(slot, entry) {
     if (entry.status === "skipped") {
@@ -161,6 +207,7 @@
         if (!data[dk][slot].synced) n++;
       });
     });
+    n += loadGschemaData().filter(function (e) { return !e.synced; }).length;
     return n;
   }
 
@@ -250,7 +297,11 @@
     if (syncing) return Promise.resolve();
     var byDate = getPendingByDate();
     var dateKeys = Object.keys(byDate);
-    if (!dateKeys.length) {
+    var pendingG = loadGschemaData().filter(function (e) { return !e.synced; });
+    var gByDate = {};
+    pendingG.forEach(function (e) { gByDate[e.dateKey] = true; });
+    var gDateKeys = Object.keys(gByDate);
+    if (!dateKeys.length && !gDateKeys.length) {
       syncState.status = "synced";
       updateSyncBadge();
       return Promise.resolve();
@@ -262,6 +313,9 @@
     var chain = Promise.resolve();
     dateKeys.forEach(function (dk) {
       chain = chain.then(function () { return syncOneDate(cfg, dk, byDate[dk]); });
+    });
+    gDateKeys.forEach(function (dk) {
+      chain = chain.then(function () { return syncOneGschemaDate(cfg, dk); });
     });
 
     return chain
@@ -276,8 +330,38 @@
       .then(function () {
         syncing = false;
         updateSyncBadge();
-        if (state.view === "settings" || state.view === "confirm") renderView();
+        if (state.view === "settings" || state.view === "confirm" || state.view === "gschema-confirm") renderView();
       });
+  }
+
+  function syncOneGschemaDate(cfg, dateKey) {
+    var path = "gschema-" + dateKey + ".md";
+    var allData = loadGschemaData();
+    var pending = allData.filter(function (e) { return e.dateKey === dateKey && !e.synced; });
+    if (!pending.length) return Promise.resolve();
+    return ghGetFile(cfg, path).then(function (file) {
+      var content = file.exists ? file.content.replace(/\s+$/, "") : "# G-schema " + dateKey;
+      var changed = false;
+      pending.forEach(function (entry) {
+        var d = new Date(entry.timestamp);
+        var timeStr = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        var heading = "## " + timeStr;
+        if (new RegExp("^" + heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", "m").test(content)) {
+          entry.synced = true;
+          return;
+        }
+        content += "\n\n" + buildGschemaBlock(entry);
+        changed = true;
+        entry.synced = true;
+      });
+      saveGschemaData(allData);
+      if (!changed) return Promise.resolve();
+      return ghPutFile(cfg, path, content + "\n", file.sha, "G-schema " + dateKey);
+    }).catch(function (err) {
+      pending.forEach(function (entry) { entry.synced = false; });
+      saveGschemaData(allData);
+      throw err;
+    });
   }
 
   function syncOneDate(cfg, dateKey, slots) {
@@ -354,6 +438,8 @@
     else if (state.view === "question") viewEl.appendChild(renderQuestion());
     else if (state.view === "confirm") viewEl.appendChild(renderConfirm());
     else if (state.view === "settings") viewEl.appendChild(renderSettings());
+    else if (state.view === "gschema") viewEl.appendChild(renderGschema());
+    else if (state.view === "gschema-confirm") viewEl.appendChild(renderGschemaConfirm());
     updateSyncBadge();
     updateStatusDot();
   }
@@ -389,6 +475,12 @@
       }, ["Start meting " + next]));
     }
 
+    wrap.appendChild(h("button", {
+      class: "btn btn-secondary",
+      style: "margin-top:20px;",
+      onclick: openGschema
+    }, ["Nieuw G-schema invullen"]));
+
     return wrap;
   }
 
@@ -411,7 +503,127 @@
     state.activityChoice = null;
     state.activitySubChoice = null;
     state.activityOtherText = "";
+    state.gStep = 0;
+    state.gAnswers = {};
+    state.gSelectedEmotions = [];
+    state.gIntensity = 50;
     renderView();
+  }
+
+  function openGschema() {
+    state.view = "gschema";
+    state.gStep = 0;
+    state.gAnswers = {};
+    state.gSelectedEmotions = [];
+    state.gIntensity = 50;
+    renderView();
+  }
+
+  function saveGschemaEntry(answers) {
+    var now = new Date();
+    var entry = {
+      id: now.toISOString(),
+      timestamp: now.toISOString(),
+      dateKey: todayKey(),
+      gebeurtenis: answers.gebeurtenis,
+      gedachten: answers.gedachten,
+      gevoelens: answers.gevoelens,
+      intensiteit: answers.intensiteit,
+      gedrag: answers.gedrag,
+      gevolg: answers.gevolg,
+      synced: false
+    };
+    var data = loadGschemaData();
+    data.push(entry);
+    saveGschemaData(data);
+    processSyncQueue();
+    state.view = "gschema-confirm";
+    renderView();
+  }
+
+  function renderGschema() {
+    var step = GSCHEMA_STEPS[state.gStep];
+    var isLast = state.gStep === GSCHEMA_STEPS.length - 1;
+    var wrap = h("div", { class: "card question-card" }, []);
+
+    wrap.appendChild(h("button", { class: "link-back", onclick: goHome }, ["← Terug naar overzicht"]));
+    wrap.appendChild(h("p", { class: "progress" }, [
+      "G-schema · stap " + (state.gStep + 1) + " van " + GSCHEMA_STEPS.length
+    ]));
+    wrap.appendChild(h("p", { class: "question-text" }, [step.text]));
+    if (step.hint) {
+      wrap.appendChild(h("p", { class: "help" }, [step.hint]));
+    }
+
+    if (step.type === "text") {
+      var ta = h("textarea", { rows: "4", placeholder: step.placeholder || "", id: "ginput" }, []);
+      ta.value = state.gAnswers[step.key] || "";
+      wrap.appendChild(h("div", { class: "field" }, [ta]));
+      wrap.appendChild(h("button", {
+        class: "btn btn-primary",
+        onclick: function () {
+          var val = ta.value.trim();
+          if (!val) { showToast("Vul dit veld in voordat je verder gaat."); return; }
+          state.gAnswers[step.key] = val;
+          if (isLast) { saveGschemaEntry(state.gAnswers); }
+          else { state.gStep++; renderView(); }
+        }
+      }, [isLast ? "Opslaan" : "Volgende"]));
+
+    } else if (step.type === "emotion") {
+      var grid = h("div", { class: "gevoel-grid" }, []);
+      GSCHEMA_EMOTIONS.forEach(function (emotion) {
+        var isActive = state.gSelectedEmotions.indexOf(emotion) !== -1;
+        var btn = h("button", { class: "gevoel-btn" + (isActive ? " active" : "") }, [emotion]);
+        btn.addEventListener("click", function () {
+          var idx = state.gSelectedEmotions.indexOf(emotion);
+          if (idx === -1) { state.gSelectedEmotions.push(emotion); btn.classList.add("active"); }
+          else { state.gSelectedEmotions.splice(idx, 1); btn.classList.remove("active"); }
+        });
+        grid.appendChild(btn);
+      });
+      wrap.appendChild(grid);
+
+      var intensityDisplay = h("div", { class: "slider-value" }, [String(state.gIntensity)]);
+      var slider = h("input", { type: "range", min: "0", max: "100", step: "1", value: String(state.gIntensity) }, []);
+      slider.addEventListener("input", function () {
+        state.gIntensity = parseInt(slider.value, 10);
+        intensityDisplay.textContent = slider.value;
+      });
+      wrap.appendChild(h("p", { class: "help", style: "margin:18px 0 4px;font-weight:600;color:var(--ink);" }, ["Intensiteit"]));
+      wrap.appendChild(h("div", { class: "slider-wrap" }, [
+        intensityDisplay, slider,
+        h("div", { class: "scale-labels" }, [h("span", {}, ["Nauwelijks"]), h("span", {}, ["Extreem intens"])])
+      ]));
+      wrap.appendChild(h("button", {
+        class: "btn btn-primary",
+        onclick: function () {
+          if (!state.gSelectedEmotions.length) { showToast("Selecteer minstens één gevoel."); return; }
+          state.gAnswers.gevoelens = state.gSelectedEmotions.slice();
+          state.gAnswers.intensiteit = state.gIntensity;
+          state.gStep++;
+          renderView();
+        }
+      }, ["Volgende"]));
+    }
+
+    if (state.gStep > 0) {
+      wrap.appendChild(h("button", {
+        class: "btn btn-secondary",
+        onclick: function () { state.gStep--; renderView(); }
+      }, ["Terug"]));
+    }
+
+    return wrap;
+  }
+
+  function renderGschemaConfirm() {
+    var wrap = h("div", { class: "card" }, []);
+    wrap.appendChild(h("p", { class: "confirm-icon" }, ["✅"]));
+    wrap.appendChild(h("p", { class: "confirm-text" }, ["G-schema opgeslagen. Goed bezig!"]));
+    wrap.appendChild(h("p", { id: "confirmSyncStatus", class: "help", style: "text-align:center;" }, [confirmSyncStatusText()]));
+    wrap.appendChild(h("button", { class: "btn btn-primary", onclick: goHome }, ["Terug naar overzicht"]));
+    return wrap;
   }
 
   function renderQuestion() {

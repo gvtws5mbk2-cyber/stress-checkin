@@ -6,8 +6,10 @@
   var state = {
     loading: false,
     error: "",
-    entries: null, // array of {dateKey, sortKey, slot, activity, stress, fatigue, context}
-    daysLoaded: 0
+    entries: null,
+    gschema: null,
+    daysLoaded: 0,
+    gschemaLoaded: 0
   };
 
   // ---------- config (separate from the main app's read/write token) ----------
@@ -49,7 +51,7 @@
     return next;
   }
 
-  function listMeasurementFiles(cfg) {
+  function listDataFiles(cfg) {
     var files = [];
     function fetchPage(url) {
       return fetch(url, { headers: githubHeaders(cfg) }).then(function (res) {
@@ -63,9 +65,14 @@
     }
     var startUrl = "https://api.github.com/repos/" + cfg.owner + "/" + cfg.repo + "/contents/?per_page=100";
     return fetchPage(startUrl).then(function () {
-      return files.filter(function (it) {
-        return it.type === "file" && /^metingen-\d{2}-\d{2}-\d{4}\.md$/.test(it.name);
-      });
+      return {
+        metingen: files.filter(function (it) {
+          return it.type === "file" && /^metingen-\d{2}-\d{2}-\d{4}\.md$/.test(it.name);
+        }),
+        gschema: files.filter(function (it) {
+          return it.type === "file" && /^gschema-\d{2}-\d{2}-\d{4}\.md$/.test(it.name);
+        })
+      };
     });
   }
 
@@ -81,6 +88,39 @@
     var m = name.match(/^metingen-(\d{2})-(\d{2})-(\d{4})\.md$/);
     if (!m) return null;
     return { dateKey: m[1] + "-" + m[2] + "-" + m[3], sortKey: m[3] + m[2] + m[1] };
+  }
+
+  function parseDateFromGschemaFilename(name) {
+    var m = name.match(/^gschema-(\d{2})-(\d{2})-(\d{4})\.md$/);
+    if (!m) return null;
+    return { dateKey: m[1] + "-" + m[2] + "-" + m[3], sortKey: m[3] + m[2] + m[1] };
+  }
+
+  function parseGschemaMarkdown(content, dateInfo) {
+    var entries = [];
+    var blocks = content.split(/^## /m).slice(1);
+    blocks.forEach(function (block) {
+      var lines = block.split("\n");
+      var time = (lines[0] || "").trim();
+      var body = lines.slice(1).join("\n");
+      var gM = body.match(/\*\*Gebeurtenis:\*\*\s*(.+)/);
+      var gtM = body.match(/\*\*Gedachten:\*\*\s*(.+)/);
+      var gevM = body.match(/\*\*Gevoel:\*\*\s*(.+)/);
+      var gedM = body.match(/\*\*Gedrag:\*\*\s*(.+)/);
+      var gvlM = body.match(/\*\*Gevolg:\*\*\s*(.+)/);
+      if (!gM || !gtM || !gevM || !gedM || !gvlM) return;
+      entries.push({
+        dateKey: dateInfo.dateKey,
+        sortKey: dateInfo.sortKey,
+        time: time,
+        gebeurtenis: gM[1].trim(),
+        gedachten: gtM[1].trim(),
+        gevoel: gevM[1].trim(),
+        gedrag: gedM[1].trim(),
+        gevolg: gvlM[1].trim()
+      });
+    });
+    return entries;
   }
 
   function parseMeasurementsMarkdown(content, dateInfo) {
@@ -114,11 +154,13 @@
   }
 
   function loadAllData(cfg) {
-    return listMeasurementFiles(cfg).then(function (files) {
-      state.daysLoaded = files.length;
+    return listDataFiles(cfg).then(function (result) {
+      state.daysLoaded = result.metingen.length;
+      state.gschemaLoaded = result.gschema.length;
       var chain = Promise.resolve();
       var allEntries = [];
-      files.forEach(function (file) {
+      var allGschema = [];
+      result.metingen.forEach(function (file) {
         chain = chain.then(function () {
           var dateInfo = parseDateFromFilename(file.name);
           if (!dateInfo) return;
@@ -127,7 +169,16 @@
           });
         });
       });
-      return chain.then(function () { return allEntries; });
+      result.gschema.forEach(function (file) {
+        chain = chain.then(function () {
+          var dateInfo = parseDateFromGschemaFilename(file.name);
+          if (!dateInfo) return;
+          return fetchFileContent(cfg, file.path).then(function (content) {
+            allGschema = allGschema.concat(parseGschemaMarkdown(content, dateInfo));
+          });
+        });
+      });
+      return chain.then(function () { return { entries: allEntries, gschema: allGschema }; });
     });
   }
 
@@ -291,6 +342,30 @@
       viewEl.appendChild(contextCard);
     }
 
+    // G-schema entries (meest recent eerst)
+    if (state.gschema && state.gschema.length) {
+      var sortedG = state.gschema.slice().sort(function (a, b) {
+        var aKey = a.sortKey + (a.time || "");
+        var bKey = b.sortKey + (b.time || "");
+        return bKey < aKey ? -1 : bKey > aKey ? 1 : 0;
+      });
+      var gCard = h("div", { class: "card" }, [
+        h("p", { class: "date-title", style: "font-size:1.3rem;" }, ["G-schema's"])
+      ]);
+      sortedG.forEach(function (e) {
+        var block = h("div", { class: "gschema-entry" }, [
+          h("p", { style: "margin:0 0 6px;font-weight:600;font-size:0.85rem;color:var(--muted);" }, [e.dateKey + " · " + e.time]),
+          h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gevoel:"]), " " + e.gevoel]),
+          h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gebeurtenis:"]), " " + e.gebeurtenis]),
+          h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gedachten:"]), " " + e.gedachten]),
+          h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gedrag:"]), " " + e.gedrag]),
+          h("p", { style: "margin:0;" }, [h("strong", {}, ["Gevolg:"]), " " + e.gevolg])
+        ]);
+        gCard.appendChild(block);
+      });
+      viewEl.appendChild(gCard);
+    }
+
     viewEl.appendChild(h("p", { class: "help", style: "text-align:center;" }, [
       filled.length + " ingevulde metingen over " + state.daysLoaded + " dagbestand(en)."
     ]));
@@ -302,8 +377,9 @@
     state.error = "";
     renderView();
     loadAllData(cfg)
-      .then(function (entries) {
-        state.entries = entries;
+      .then(function (result) {
+        state.entries = result.entries;
+        state.gschema = result.gschema;
         state.loading = false;
         renderView();
       })

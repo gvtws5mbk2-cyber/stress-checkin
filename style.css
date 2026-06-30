@@ -290,3 +290,22 @@ label{font-weight:600;font-size:0.92rem;display:block;margin-bottom:6px;color:va
 .bar-fill.bar-stress{background:var(--gold);}
 .bar-fill.bar-fatigue{background:var(--sage);}
 .bar-caption{font-size:0.78rem;color:var(--muted);margin-bottom:8px;}
+
+.gevoel-grid{display:flex;flex-wrap:wrap;gap:10px;}
+.gevoel-btn{
+  padding:10px 16px;
+  border:2px solid rgba(46,42,34,0.12);
+  border-radius:50px;
+  background:var(--card);
+  color:var(--ink);
+  font-size:0.92rem;
+  font-weight:600;
+  cursor:pointer;
+}
+.gevoel-btn.active{
+  background:var(--ink);
+  color:#fbf6ea;
+  border-color:var(--ink);
+}
+.gschema-entry{border-left:3px solid var(--navy);padding-left:12px;margin-bottom:14px;}
+.gschema-entry:last-child{margin-bottom:0;}
