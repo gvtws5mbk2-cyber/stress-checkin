@@ -1,6 +1,12 @@
 (function () {
   "use strict";
 
+  // Anti-clickjacking: deze pagina bewaart een token, dus nooit in een iframe draaien.
+  if (window.self !== window.top) {
+    try { window.top.location = window.location; }
+    catch (e) { document.documentElement.style.display = "none"; }
+  }
+
   var SLOTS = ["09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00"];
 
   var state = {
@@ -254,7 +260,7 @@
     ]));
     var ownerInput = h("input", { type: "text", value: cfg.owner || "", placeholder: "GitHub-gebruikersnaam" }, []);
     var repoInput = h("input", { type: "text", value: cfg.repo || "stress-checkin-data", placeholder: "data-repo naam" }, []);
-    var tokenInput = h("input", { type: "text", value: cfg.token || "", placeholder: "github_pat_..." }, []);
+    var tokenInput = h("input", { type: "password", autocomplete: "off", value: cfg.token || "", placeholder: "github_pat_..." }, []);
     card.appendChild(h("div", { class: "field" }, [h("label", {}, ["GitHub-gebruikersnaam"]), ownerInput]));
     card.appendChild(h("div", { class: "field" }, [h("label", {}, ["Data-repo naam"]), repoInput]));
     card.appendChild(h("div", { class: "field" }, [h("label", {}, ["Personal Access Token (read-only)"]), tokenInput]));

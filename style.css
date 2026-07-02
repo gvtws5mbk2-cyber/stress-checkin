@@ -28,7 +28,7 @@ button{
   appearance:none;
   -webkit-tap-highlight-color:transparent;
 }
-input[type=text],textarea{
+input[type=text],input[type=password],textarea{
   -webkit-appearance:none;
   appearance:none;
 }
@@ -215,7 +215,7 @@ main{flex:1;padding:20px;}
 }
 .progress{font-size:0.85rem;color:var(--muted);letter-spacing:0.01em;}
 
-textarea, input[type=text], select{
+textarea, input[type=text], input[type=password], select{
   width:100%;
   font-size:1.05rem;
   padding:14px;
