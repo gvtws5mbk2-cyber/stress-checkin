@@ -15,7 +15,9 @@
     entries: null,
     gschema: null,
     daysLoaded: 0,
-    gschemaLoaded: 0
+    gschemaLoaded: 0,
+    tab: "activiteiten",
+    showSettings: false
   };
 
   // ---------- config (separate from the main app's read/write token) ----------
@@ -115,6 +117,7 @@
       var gedM = body.match(/\*\*Gedrag:\*\*\s*(.+)/);
       var gvlM = body.match(/\*\*Gevolg:\*\*\s*(.+)/);
       if (!gM || !gtM || !gevM || !gedM || !gvlM) return;
+      var intM = gevM[1].match(/\((\d+)\/100\)/);
       entries.push({
         dateKey: dateInfo.dateKey,
         sortKey: dateInfo.sortKey,
@@ -122,6 +125,7 @@
         gebeurtenis: gM[1].trim(),
         gedachten: gtM[1].trim(),
         gevoel: gevM[1].trim(),
+        intensiteit: intM ? parseInt(intM[1], 10) : null,
         gedrag: gedM[1].trim(),
         gevolg: gvlM[1].trim()
       });
@@ -210,6 +214,20 @@
     });
   }
 
+  function dailyAverages(filled) {
+    var map = {};
+    filled.forEach(function (e) {
+      if (!map[e.sortKey]) map[e.sortKey] = { sortKey: e.sortKey, dateKey: e.dateKey, n: 0, s: 0, f: 0 };
+      map[e.sortKey].n++;
+      map[e.sortKey].s += e.stress;
+      map[e.sortKey].f += e.fatigue;
+    });
+    return Object.keys(map).sort().map(function (k) {
+      var d = map[k];
+      return { sortKey: d.sortKey, dateKey: d.dateKey, avgStress: d.s / d.n, avgFatigue: d.f / d.n };
+    });
+  }
+
   // ---------- rendering ----------
 
   var viewEl;
@@ -229,6 +247,19 @@
     return el;
   }
 
+  var SVG_NS = "http://www.w3.org/2000/svg";
+
+  function hs(tag, attrs, children) {
+    var el = document.createElementNS(SVG_NS, tag);
+    attrs = attrs || {};
+    Object.keys(attrs).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+    (children || []).forEach(function (c) {
+      if (typeof c === "string") el.appendChild(document.createTextNode(c));
+      else if (c) el.appendChild(c);
+    });
+    return el;
+  }
+
   function showToast(msg) {
     var existing = document.querySelector(".toast");
     if (existing) existing.remove();
@@ -237,19 +268,227 @@
     setTimeout(function () { t.remove(); }, 3200);
   }
 
-  function barRow(label, count, avgStress, avgFatigue) {
-    return h("div", { class: "trend-row" }, [
-      h("div", { class: "trend-label" }, [label + " (" + count + "×)"]),
-      h("div", { class: "bar-track" }, [
-        h("div", { class: "bar-fill bar-stress", style: "width:" + (avgStress || 0) + "%;" }, []),
-      ]),
-      h("div", { class: "bar-caption" }, ["Stress " + (avgStress != null ? avgStress : "–") + "/100"]),
-      h("div", { class: "bar-track" }, [
-        h("div", { class: "bar-fill bar-fatigue", style: "width:" + (avgFatigue || 0) + "%;" }, []),
-      ]),
-      h("div", { class: "bar-caption" }, ["Vermoeidheid " + (avgFatigue != null ? avgFatigue : "–") + "/100"])
+  function cardTitle(text) {
+    return h("p", { class: "date-title", style: "font-size:1.3rem;" }, [text]);
+  }
+
+  function shortDate(dateKey) {
+    return dateKey.slice(0, 5); // dd-mm
+  }
+
+  // ---------- overzicht: lijngrafiek ----------
+
+  function legendItem(color, label) {
+    return h("span", {}, [
+      h("span", { class: "legend-dot", style: "background:" + color + ";" }, []),
+      label
     ]);
   }
+
+  function lineChartCard(filled, gschema) {
+    var card = h("div", { class: "card" }, [cardTitle("Verloop per dag")]);
+    var days = dailyAverages(filled).slice(-31);
+
+    if (days.length < 2) {
+      card.appendChild(h("p", { class: "help" }, [
+        "Zodra er metingen van twee of meer dagen zijn, verschijnt hier het verloop van je stress en vermoeidheid."
+      ]));
+      return card;
+    }
+
+    var W = 340, H = 190;
+    var padL = 30, padR = 10, padT = 12, padB = 26;
+    var innerW = W - padL - padR;
+    var innerH = H - padT - padB;
+    var n = days.length;
+
+    function x(i) { return padL + (n === 1 ? innerW / 2 : i * innerW / (n - 1)); }
+    function y(v) { return padT + (1 - v / 100) * innerH; }
+
+    var svg = hs("svg", { viewBox: "0 0 " + W + " " + H, width: "100%", role: "img", "aria-label": "Lijngrafiek van stress en vermoeidheid per dag" }, []);
+
+    // gridlijnen + y-labels
+    [0, 25, 50, 75, 100].forEach(function (v) {
+      svg.appendChild(hs("line", {
+        x1: padL, y1: y(v), x2: W - padR, y2: y(v),
+        style: "stroke:rgba(46,42,34,0.08);stroke-width:1;"
+      }, []));
+    });
+    [0, 50, 100].forEach(function (v) {
+      svg.appendChild(hs("text", {
+        x: padL - 6, y: y(v) + 3, "text-anchor": "end",
+        style: "font-size:9px;fill:var(--muted);font-family:var(--sans);"
+      }, [String(v)]));
+    });
+
+    // x-labels: eerste en laatste dag
+    svg.appendChild(hs("text", {
+      x: x(0), y: H - 8, "text-anchor": "start",
+      style: "font-size:9px;fill:var(--muted);font-family:var(--sans);"
+    }, [shortDate(days[0].dateKey)]));
+    svg.appendChild(hs("text", {
+      x: x(n - 1), y: H - 8, "text-anchor": "end",
+      style: "font-size:9px;fill:var(--muted);font-family:var(--sans);"
+    }, [shortDate(days[n - 1].dateKey)]));
+
+    // lijnen
+    function polyline(valueFn, color, width) {
+      var pts = days.map(function (d, i) { return x(i) + "," + y(valueFn(d)); }).join(" ");
+      return hs("polyline", {
+        points: pts,
+        style: "fill:none;stroke:" + color + ";stroke-width:" + width + ";stroke-linejoin:round;stroke-linecap:round;"
+      }, []);
+    }
+    svg.appendChild(polyline(function (d) { return d.avgFatigue; }, "var(--sage)", 2));
+    svg.appendChild(polyline(function (d) { return d.avgStress; }, "var(--gold)", 2.5));
+
+    // datapunten
+    days.forEach(function (d, i) {
+      svg.appendChild(hs("circle", { cx: x(i), cy: y(d.avgFatigue), r: 2.5, style: "fill:var(--sage);" }, []));
+      svg.appendChild(hs("circle", { cx: x(i), cy: y(d.avgStress), r: 2.5, style: "fill:var(--gold);" }, []));
+    });
+
+    // G-schema-momenten (angst/paniek) als losse markers
+    var dayIndex = {};
+    days.forEach(function (d, i) { dayIndex[d.dateKey] = i; });
+    var markers = (gschema || []).filter(function (g) { return dayIndex[g.dateKey] !== undefined; });
+    markers.forEach(function (g) {
+      var v = g.intensiteit !== null ? g.intensiteit : 95;
+      var c = hs("circle", {
+        cx: x(dayIndex[g.dateKey]), cy: y(v), r: 4,
+        style: "fill:var(--danger);stroke:var(--card);stroke-width:1.5;"
+      }, []);
+      c.appendChild(hs("title", {}, [g.dateKey + " " + g.time + " · " + g.gevoel]));
+      svg.appendChild(c);
+    });
+
+    card.appendChild(svg);
+
+    var legend = h("div", { class: "chart-legend" }, [
+      legendItem("var(--gold)", "Stress"),
+      legendItem("var(--sage)", "Vermoeidheid")
+    ]);
+    if (markers.length) legend.appendChild(legendItem("var(--danger)", "Angst/paniek-moment"));
+    card.appendChild(legend);
+
+    if (dailyAverages(filled).length > 31) {
+      card.appendChild(h("p", { class: "help" }, ["Laatste 31 dagen met metingen."]));
+    }
+    return card;
+  }
+
+  // ---------- overzicht: rust vs. stress per activiteit ----------
+
+  function simpleBarRow(label, caption, value, color) {
+    return h("div", { class: "trend-row" }, [
+      h("div", { class: "trend-label" }, [label]),
+      h("div", { class: "bar-track" }, [
+        h("div", { class: "bar-fill", style: "width:" + value + "%;background:" + color + ";" }, [])
+      ]),
+      h("div", { class: "bar-caption" }, [caption])
+    ]);
+  }
+
+  function rustStressCard(filled) {
+    var agg = aggregateByKey(filled, function (e) { return e.activity; });
+    var reliable = agg.filter(function (r) { return r.count >= 2; });
+    var pool = reliable.length >= 2 ? reliable : agg;
+    var sorted = pool.slice().sort(function (a, b) { return a.avgStress - b.avgStress; });
+
+    var card = h("div", { class: "card" }, [cardTitle("Wat geeft rust, wat geeft stress")]);
+
+    var rust = sorted.slice(0, Math.min(5, Math.ceil(sorted.length / 2)));
+    var stress = sorted.slice(rust.length).slice(-5).reverse();
+
+    card.appendChild(h("p", { class: "trend-label", style: "color:var(--done-text);margin-bottom:10px;" }, ["Meeste rust"]));
+    rust.forEach(function (r) {
+      card.appendChild(simpleBarRow(r.key, "Gem. stress " + r.avgStress + "/100 · " + r.count + "×", r.avgStress, "var(--sage)"));
+    });
+
+    if (stress.length) {
+      card.appendChild(h("p", { class: "trend-label", style: "color:var(--open-text);margin:18px 0 10px;" }, ["Meeste stress"]));
+      stress.forEach(function (r) {
+        card.appendChild(simpleBarRow(r.key, "Gem. stress " + r.avgStress + "/100 · " + r.count + "×", r.avgStress, "var(--gold)"));
+      });
+    }
+
+    if (reliable.length >= 2 && reliable.length < agg.length) {
+      card.appendChild(h("p", { class: "help" }, ["Activiteiten met maar één meting zijn hier weggelaten."]));
+    }
+    return card;
+  }
+
+  // ---------- tabs met detail-overzichten ----------
+
+  function renderActivityCard(filled) {
+    var byActivity = aggregateByKey(filled, function (e) { return e.activity; })
+      .sort(function (a, b) { return b.count - a.count; });
+    var card = h("div", { class: "card" }, [cardTitle("Per activiteit")]);
+    byActivity.forEach(function (row) {
+      card.appendChild(h("div", { class: "trend-row" }, [
+        h("div", { class: "trend-label" }, [row.key + " (" + row.count + "×)"]),
+        h("div", { class: "bar-track" }, [h("div", { class: "bar-fill bar-stress", style: "width:" + (row.avgStress || 0) + "%;" }, [])]),
+        h("div", { class: "bar-caption" }, ["Stress " + (row.avgStress != null ? row.avgStress : "–") + "/100"]),
+        h("div", { class: "bar-track" }, [h("div", { class: "bar-fill bar-fatigue", style: "width:" + (row.avgFatigue || 0) + "%;" }, [])]),
+        h("div", { class: "bar-caption" }, ["Vermoeidheid " + (row.avgFatigue != null ? row.avgFatigue : "–") + "/100"])
+      ]));
+    });
+    return card;
+  }
+
+  function renderSlotCard(filled) {
+    var bySlot = aggregateByKey(filled, function (e) { return e.slot; });
+    var slotMap = {};
+    bySlot.forEach(function (r) { slotMap[r.key] = r; });
+    var card = h("div", { class: "card" }, [cardTitle("Per tijdvak")]);
+    SLOTS.forEach(function (slot) {
+      var row = slotMap[slot];
+      if (!row) return;
+      card.appendChild(h("div", { class: "trend-row" }, [
+        h("div", { class: "trend-label" }, [slot + " (" + row.count + "×)"]),
+        h("div", { class: "bar-track" }, [h("div", { class: "bar-fill bar-stress", style: "width:" + (row.avgStress || 0) + "%;" }, [])]),
+        h("div", { class: "bar-caption" }, ["Stress " + (row.avgStress != null ? row.avgStress : "–") + "/100"]),
+        h("div", { class: "bar-track" }, [h("div", { class: "bar-fill bar-fatigue", style: "width:" + (row.avgFatigue || 0) + "%;" }, [])]),
+        h("div", { class: "bar-caption" }, ["Vermoeidheid " + (row.avgFatigue != null ? row.avgFatigue : "–") + "/100"])
+      ]));
+    });
+    return card;
+  }
+
+  function renderNotesCard(filled) {
+    var withContext = filled.filter(function (e) { return e.context; })
+      .sort(function (a, b) { return (b.sortKey + b.slot) < (a.sortKey + a.slot) ? -1 : 1; });
+    var card = h("div", { class: "card" }, [cardTitle("Context-aantekeningen")]);
+    withContext.forEach(function (e) {
+      card.appendChild(h("div", { class: "summary-block", style: "margin-bottom:10px;" }, [
+        h("p", { style: "margin:0 0 4px;font-weight:600;" }, [e.dateKey + " · " + e.slot + " · " + e.activity]),
+        h("p", { style: "margin:0;" }, [e.context])
+      ]));
+    });
+    return card;
+  }
+
+  function renderGschemaCard() {
+    var sortedG = state.gschema.slice().sort(function (a, b) {
+      var aKey = a.sortKey + (a.time || "");
+      var bKey = b.sortKey + (b.time || "");
+      return bKey < aKey ? -1 : bKey > aKey ? 1 : 0;
+    });
+    var card = h("div", { class: "card" }, [cardTitle("G-schema's")]);
+    sortedG.forEach(function (e) {
+      card.appendChild(h("div", { class: "gschema-entry" }, [
+        h("p", { style: "margin:0 0 6px;font-weight:600;font-size:0.85rem;color:var(--muted);" }, [e.dateKey + " · " + e.time]),
+        h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gevoel:"]), " " + e.gevoel]),
+        h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gebeurtenis:"]), " " + e.gebeurtenis]),
+        h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gedachten:"]), " " + e.gedachten]),
+        h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gedrag:"]), " " + e.gedrag]),
+        h("p", { style: "margin:0;" }, [h("strong", {}, ["Gevolg:"]), " " + e.gevolg])
+      ]));
+    });
+    return card;
+  }
+
+  // ---------- instellingen ----------
 
   function renderSettingsCard(cfg) {
     var card = h("div", { class: "card" }, []);
@@ -273,12 +512,15 @@
           return;
         }
         saveConfig(newCfg);
+        state.showSettings = false;
         showToast("Instellingen opgeslagen, data wordt geladen…");
         loadAndRender(newCfg);
       }
     }, ["Opslaan & laden"]));
     return card;
   }
+
+  // ---------- hoofdweergave ----------
 
   function renderView() {
     viewEl.innerHTML = "";
@@ -292,7 +534,11 @@
       }
     }
 
-    viewEl.appendChild(renderSettingsCard(cfg));
+    var configured = !!(cfg.token && cfg.owner && cfg.repo);
+
+    if (!configured || state.showSettings) {
+      viewEl.appendChild(renderSettingsCard(cfg));
+    }
 
     if (state.loading) {
       viewEl.appendChild(h("div", { class: "card" }, [h("p", { class: "confirm-text" }, ["Data wordt geladen…"])]));
@@ -300,81 +546,70 @@
     }
     if (state.error) {
       viewEl.appendChild(h("div", { class: "card" }, [h("p", { style: "color:var(--danger);font-weight:600;margin:0;" }, ["⚠️ Fout bij laden: " + state.error])]));
+      if (configured && !state.showSettings) {
+        viewEl.appendChild(h("button", {
+          class: "btn btn-secondary",
+          onclick: function () { state.showSettings = true; renderView(); }
+        }, ["⚙️ Instellingen"]));
+      }
       return;
     }
     if (!state.entries) {
       return;
     }
 
-    var entries = state.entries;
-    var filled = entries.filter(function (e) { return !e.skipped; });
+    var filled = state.entries.filter(function (e) { return !e.skipped; });
+    var hasGschema = state.gschema && state.gschema.length > 0;
 
-    if (!filled.length) {
+    if (!filled.length && !hasGschema) {
       viewEl.appendChild(h("div", { class: "card" }, [h("p", { class: "confirm-text" }, ["Nog geen ingevulde metingen gevonden in " + state.daysLoaded + " dagbestand(en)."])]));
       return;
     }
 
-    // per activiteit
-    var byActivity = aggregateByKey(filled, function (e) { return e.activity; })
-      .sort(function (a, b) { return b.count - a.count; });
-    var activityCard = h("div", { class: "card" }, [h("p", { class: "date-title", style: "font-size:1.3rem;" }, ["Per activiteit"])]);
-    byActivity.forEach(function (row) {
-      activityCard.appendChild(barRow(row.key, row.count, row.avgStress, row.avgFatigue));
-    });
-    viewEl.appendChild(activityCard);
-
-    // per tijdvak
-    var bySlot = aggregateByKey(filled, function (e) { return e.slot; });
-    var slotMap = {};
-    bySlot.forEach(function (r) { slotMap[r.key] = r; });
-    var slotCard = h("div", { class: "card" }, [h("p", { class: "date-title", style: "font-size:1.3rem;" }, ["Per tijdvak"])]);
-    SLOTS.forEach(function (slot) {
-      var row = slotMap[slot];
-      if (row) slotCard.appendChild(barRow(slot, row.count, row.avgStress, row.avgFatigue));
-    });
-    viewEl.appendChild(slotCard);
-
-    // context-aantekeningen
-    var withContext = filled.filter(function (e) { return e.context; })
-      .sort(function (a, b) { return (b.sortKey + b.slot) < (a.sortKey + a.slot) ? -1 : 1; });
-    if (withContext.length) {
-      var contextCard = h("div", { class: "card" }, [h("p", { class: "date-title", style: "font-size:1.3rem;" }, ["Context-aantekeningen"])]);
-      withContext.forEach(function (e) {
-        contextCard.appendChild(h("div", { class: "summary-block", style: "margin-bottom:10px;" }, [
-          h("p", { style: "margin:0 0 4px;font-weight:600;" }, [e.dateKey + " · " + e.slot + " · " + e.activity]),
-          h("p", { style: "margin:0;" }, [e.context])
-        ]));
-      });
-      viewEl.appendChild(contextCard);
+    // Overzicht: direct zichtbaar
+    if (filled.length) {
+      viewEl.appendChild(lineChartCard(filled, state.gschema));
+      viewEl.appendChild(rustStressCard(filled));
     }
 
-    // G-schema entries (meest recent eerst)
-    if (state.gschema && state.gschema.length) {
-      var sortedG = state.gschema.slice().sort(function (a, b) {
-        var aKey = a.sortKey + (a.time || "");
-        var bKey = b.sortKey + (b.time || "");
-        return bKey < aKey ? -1 : bKey > aKey ? 1 : 0;
+    // Detail-tabs
+    var tabs = [];
+    if (filled.length) {
+      tabs.push({ key: "activiteiten", label: "Activiteiten" });
+      tabs.push({ key: "tijdvakken", label: "Tijdvakken" });
+      if (filled.some(function (e) { return e.context; })) tabs.push({ key: "notities", label: "Notities" });
+    }
+    if (hasGschema) tabs.push({ key: "gschema", label: "G-schema's" });
+
+    if (tabs.length) {
+      var validKeys = tabs.map(function (t) { return t.key; });
+      if (validKeys.indexOf(state.tab) === -1) state.tab = validKeys[0];
+
+      var bar = h("div", { class: "tab-bar" }, []);
+      tabs.forEach(function (t) {
+        bar.appendChild(h("button", {
+          class: "tab-btn" + (state.tab === t.key ? " active" : ""),
+          onclick: function () { state.tab = t.key; renderView(); }
+        }, [t.label]));
       });
-      var gCard = h("div", { class: "card" }, [
-        h("p", { class: "date-title", style: "font-size:1.3rem;" }, ["G-schema's"])
-      ]);
-      sortedG.forEach(function (e) {
-        var block = h("div", { class: "gschema-entry" }, [
-          h("p", { style: "margin:0 0 6px;font-weight:600;font-size:0.85rem;color:var(--muted);" }, [e.dateKey + " · " + e.time]),
-          h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gevoel:"]), " " + e.gevoel]),
-          h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gebeurtenis:"]), " " + e.gebeurtenis]),
-          h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gedachten:"]), " " + e.gedachten]),
-          h("p", { style: "margin:0 0 4px;" }, [h("strong", {}, ["Gedrag:"]), " " + e.gedrag]),
-          h("p", { style: "margin:0;" }, [h("strong", {}, ["Gevolg:"]), " " + e.gevolg])
-        ]);
-        gCard.appendChild(block);
-      });
-      viewEl.appendChild(gCard);
+      viewEl.appendChild(bar);
+
+      if (state.tab === "activiteiten") viewEl.appendChild(renderActivityCard(filled));
+      else if (state.tab === "tijdvakken") viewEl.appendChild(renderSlotCard(filled));
+      else if (state.tab === "notities") viewEl.appendChild(renderNotesCard(filled));
+      else if (state.tab === "gschema") viewEl.appendChild(renderGschemaCard());
     }
 
-    viewEl.appendChild(h("p", { class: "help", style: "text-align:center;" }, [
-      filled.length + " ingevulde metingen over " + state.daysLoaded + " dagbestand(en)."
-    ]));
+    var footerText = filled.length + " ingevulde metingen over " + state.daysLoaded + " dagbestand(en)";
+    if (hasGschema) footerText += " · " + state.gschema.length + " G-schema('s)";
+    viewEl.appendChild(h("p", { class: "help", style: "text-align:center;" }, [footerText + "."]));
+
+    if (configured && !state.showSettings) {
+      viewEl.appendChild(h("button", {
+        class: "btn btn-secondary",
+        onclick: function () { state.showSettings = true; renderView(); }
+      }, ["⚙️ Instellingen"]));
+    }
   }
 
   function loadAndRender(cfg) {
