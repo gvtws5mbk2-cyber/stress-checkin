@@ -1,4 +1,4 @@
-var CACHE_NAME = "stress-checkin-v22";
+var CACHE_NAME = "stress-checkin-v23";
 var ASSETS = [
   "./",
   "./index.html",
@@ -32,8 +32,10 @@ self.addEventListener("activate", function (event) {
   self.clients.claim();
 });
 
-// Network-first for our own HTML/CSS/JS, so code updates show up
-// immediately. Cache is only the offline fallback.
+// Stale-while-revalidate: serveer direct uit de cache (snelle start) en
+// ververs op de achtergrond. Nieuwe code komt binnen via de CACHE_NAME-bump:
+// de nieuwe service worker haalt alle assets vers op en de app herlaadt
+// zichzelf via controllerchange.
 self.addEventListener("fetch", function (event) {
   var url = new URL(event.request.url);
   if (url.hostname === "api.github.com") return;
@@ -41,18 +43,21 @@ self.addEventListener("fetch", function (event) {
   if (url.origin !== location.origin) return;
 
   event.respondWith(
-    fetch(event.request, { cache: "no-store" })
-      .then(function (response) {
+    caches.match(event.request).then(function (cached) {
+      var network = fetch(event.request, { cache: "no-store" }).then(function (response) {
         if (response.ok) {
           var clone = response.clone();
           caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, clone); });
         }
         return response;
-      })
-      .catch(function () {
-        return caches.match(event.request).then(function (cached) {
-          return cached || caches.match("./index.html");
-        });
-      })
+      });
+      if (cached) {
+        network.catch(function () {});
+        return cached;
+      }
+      return network.catch(function () {
+        return caches.match("./index.html");
+      });
+    })
   );
 });
