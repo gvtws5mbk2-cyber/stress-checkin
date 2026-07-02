@@ -285,17 +285,7 @@
     ]);
   }
 
-  function lineChartCard(filled, gschema) {
-    var card = h("div", { class: "card" }, [cardTitle("Verloop per dag")]);
-    var days = dailyAverages(filled).slice(-31);
-
-    if (days.length < 2) {
-      card.appendChild(h("p", { class: "help" }, [
-        "Zodra er metingen van twee of meer dagen zijn, verschijnt hier het verloop van je stress en vermoeidheid."
-      ]));
-      return card;
-    }
-
+  function buildLineChartSvg(days, markers) {
     var W = 340, H = 190;
     var padL = 30, padR = 10, padT = 12, padB = 26;
     var innerW = W - padL - padR;
@@ -351,8 +341,8 @@
     // G-schema-momenten (angst/paniek) als losse markers
     var dayIndex = {};
     days.forEach(function (d, i) { dayIndex[d.dateKey] = i; });
-    var markers = (gschema || []).filter(function (g) { return dayIndex[g.dateKey] !== undefined; });
-    markers.forEach(function (g) {
+    var placed = (markers || []).filter(function (g) { return dayIndex[g.dateKey] !== undefined; });
+    placed.forEach(function (g) {
       var v = g.intensiteit !== null ? g.intensiteit : 95;
       var c = hs("circle", {
         cx: x(dayIndex[g.dateKey]), cy: y(v), r: 4,
@@ -362,14 +352,32 @@
       svg.appendChild(c);
     });
 
-    card.appendChild(svg);
+    return { svg: svg, markerCount: placed.length };
+  }
 
+  function chartLegend(withMarkers) {
     var legend = h("div", { class: "chart-legend" }, [
       legendItem("var(--gold)", "Stress"),
       legendItem("var(--sage)", "Vermoeidheid")
     ]);
-    if (markers.length) legend.appendChild(legendItem("var(--danger)", "Angst/paniek-moment"));
-    card.appendChild(legend);
+    if (withMarkers) legend.appendChild(legendItem("var(--danger)", "Angst/paniek-moment"));
+    return legend;
+  }
+
+  function lineChartCard(filled, gschema) {
+    var card = h("div", { class: "card" }, [cardTitle("Verloop per dag")]);
+    var days = dailyAverages(filled).slice(-31);
+
+    if (days.length < 2) {
+      card.appendChild(h("p", { class: "help" }, [
+        "Zodra er metingen van twee of meer dagen zijn, verschijnt hier het verloop van je stress en vermoeidheid."
+      ]));
+      return card;
+    }
+
+    var chart = buildLineChartSvg(days, gschema);
+    card.appendChild(chart.svg);
+    card.appendChild(chartLegend(chart.markerCount > 0));
 
     if (dailyAverages(filled).length > 31) {
       card.appendChild(h("p", { class: "help" }, ["Laatste 31 dagen met metingen."]));
@@ -414,6 +422,142 @@
 
     if (reliable.length >= 2 && reliable.length < agg.length) {
       card.appendChild(h("p", { class: "help" }, ["Activiteiten met maar één meting zijn hier weggelaten."]));
+    }
+    return card;
+  }
+
+  // ---------- weektrend ----------
+
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+
+  function dateFromSortKey(sortKey) {
+    return new Date(parseInt(sortKey.slice(0, 4), 10), parseInt(sortKey.slice(4, 6), 10) - 1, parseInt(sortKey.slice(6, 8), 10));
+  }
+
+  function fmtDelta(d) {
+    var r = Math.round(d * 10) / 10;
+    return (r > 0 ? "+" : "") + r;
+  }
+
+  function round1(v) { return Math.round(v * 10) / 10; }
+
+  function weekTrendCard(filled) {
+    var card = h("div", { class: "card" }, [cardTitle("Weektrend")]);
+    var days = dailyAverages(filled);
+
+    if (days.length < 2) {
+      card.appendChild(h("p", { class: "help" }, [
+        "Zodra er metingen van twee of meer dagen zijn, verschijnt hier de trend over de weken heen."
+      ]));
+      return card;
+    }
+
+    // voortschrijdend 7-daags gemiddelde
+    var smoothed = days.map(function (d) {
+      var end = dateFromSortKey(d.sortKey).getTime();
+      var start = end - 6 * 86400000;
+      var s = 0, f = 0, n = 0;
+      days.forEach(function (o) {
+        var t = dateFromSortKey(o.sortKey).getTime();
+        if (t >= start && t <= end) { s += o.avgStress; f += o.avgFatigue; n++; }
+      });
+      return { dateKey: d.dateKey, avgStress: s / n, avgFatigue: f / n };
+    });
+    card.appendChild(h("p", { class: "help", style: "margin:0 0 10px;" }, [
+      "Voortschrijdend 7-daags gemiddelde: elk punt is het gemiddelde van die dag plus de zes dagen ervoor. Zo zie je de richting, los van dag-tot-dag-schommelingen."
+    ]));
+    card.appendChild(buildLineChartSvg(smoothed, []).svg);
+    card.appendChild(chartLegend(false));
+
+    // gemiddelden per kalenderweek (ma t/m zo)
+    var weeks = {};
+    filled.forEach(function (e) {
+      var d = dateFromSortKey(e.sortKey);
+      var monday = new Date(d.getTime() - ((d.getDay() + 6) % 7) * 86400000);
+      var wk = monday.getFullYear() + pad2(monday.getMonth() + 1) + pad2(monday.getDate());
+      if (!weeks[wk]) weeks[wk] = { label: "Week van " + pad2(monday.getDate()) + "-" + pad2(monday.getMonth() + 1), n: 0, s: 0, f: 0 };
+      weeks[wk].n++;
+      weeks[wk].s += e.stress;
+      weeks[wk].f += e.fatigue;
+    });
+    var weekRows = Object.keys(weeks).sort().map(function (k) {
+      var w = weeks[k];
+      return { label: w.label, n: w.n, avgS: w.s / w.n, avgF: w.f / w.n };
+    });
+    var prev = null;
+    weekRows.forEach(function (w) {
+      var sCap = "Stress " + round1(w.avgS) + "/100";
+      var fCap = "Vermoeidheid " + round1(w.avgF) + "/100";
+      if (prev) {
+        sCap += " (" + fmtDelta(w.avgS - prev.avgS) + ")";
+        fCap += " (" + fmtDelta(w.avgF - prev.avgF) + ")";
+      }
+      card.appendChild(h("div", { class: "trend-row", style: "margin-top:14px;" }, [
+        h("div", { class: "trend-label" }, [w.label + " (" + w.n + " metingen)"]),
+        h("div", { class: "bar-track" }, [h("div", { class: "bar-fill bar-stress", style: "width:" + w.avgS + "%;" }, [])]),
+        h("div", { class: "bar-caption" }, [sCap]),
+        h("div", { class: "bar-track" }, [h("div", { class: "bar-fill bar-fatigue", style: "width:" + w.avgF + "%;" }, [])]),
+        h("div", { class: "bar-caption" }, [fCap])
+      ]));
+      prev = w;
+    });
+    if (weekRows.length > 1) {
+      card.appendChild(h("p", { class: "help" }, ["Het getal tussen haakjes is het verschil met de week ervoor."]));
+    }
+    return card;
+  }
+
+  // ---------- wat helpt: stressverandering per activiteit ----------
+
+  function stressDeltaCard(filled) {
+    var card = h("div", { class: "card" }, [cardTitle("Wat helpt écht")]);
+    card.appendChild(h("p", { class: "help", style: "margin:0 0 14px;" }, [
+      "Gemiddelde verandering in stress dírect na een activiteit, vergeleken met de meting ervóór op dezelfde dag. Groen = kalmerend, goud = spanning erbij. Dit zegt meer dan het gemiddelde: het laat zien wat een activiteit dóet met je stress."
+    ]));
+
+    var byDay = {};
+    filled.forEach(function (e) {
+      if (!byDay[e.sortKey]) byDay[e.sortKey] = [];
+      byDay[e.sortKey].push(e);
+    });
+    var map = {};
+    Object.keys(byDay).forEach(function (k) {
+      var list = byDay[k].slice().sort(function (a, b) { return a.slot < b.slot ? -1 : 1; });
+      for (var i = 1; i < list.length; i++) {
+        var act = list[i].activity;
+        if (!map[act]) map[act] = { key: act, n: 0, ds: 0, df: 0 };
+        map[act].n++;
+        map[act].ds += list[i].stress - list[i - 1].stress;
+        map[act].df += list[i].fatigue - list[i - 1].fatigue;
+      }
+    });
+    var rows = Object.keys(map).map(function (k) {
+      var m = map[k];
+      return { key: m.key, n: m.n, dStress: m.ds / m.n, dFatigue: m.df / m.n };
+    });
+
+    if (!rows.length) {
+      card.appendChild(h("p", { class: "help" }, ["Hiervoor zijn dagen nodig met twee of meer ingevulde metingen na elkaar."]));
+      return card;
+    }
+
+    var reliable = rows.filter(function (r) { return r.n >= 2; });
+    var pool = (reliable.length >= 2 ? reliable : rows).slice()
+      .sort(function (a, b) { return a.dStress - b.dStress; });
+
+    pool.forEach(function (r) {
+      var width = Math.min(Math.abs(r.dStress), 40) / 40 * 100;
+      var color = r.dStress <= 0 ? "var(--sage)" : "var(--gold)";
+      card.appendChild(simpleBarRow(
+        r.key,
+        "Stress " + fmtDelta(r.dStress) + " · Vermoeidheid " + fmtDelta(r.dFatigue) + " punten (" + r.n + "×)",
+        width,
+        color
+      ));
+    });
+
+    if (reliable.length >= 2 && reliable.length < rows.length) {
+      card.appendChild(h("p", { class: "help" }, ["Activiteiten met maar één zo'n overgang zijn hier weggelaten."]));
     }
     return card;
   }
@@ -577,6 +721,8 @@
     if (filled.length) {
       tabs.push({ key: "activiteiten", label: "Activiteiten" });
       tabs.push({ key: "tijdvakken", label: "Tijdvakken" });
+      tabs.push({ key: "weektrend", label: "Weektrend" });
+      tabs.push({ key: "wathelpt", label: "Wat helpt" });
       if (filled.some(function (e) { return e.context; })) tabs.push({ key: "notities", label: "Notities" });
     }
     if (hasGschema) tabs.push({ key: "gschema", label: "G-schema's" });
@@ -596,6 +742,8 @@
 
       if (state.tab === "activiteiten") viewEl.appendChild(renderActivityCard(filled));
       else if (state.tab === "tijdvakken") viewEl.appendChild(renderSlotCard(filled));
+      else if (state.tab === "weektrend") viewEl.appendChild(weekTrendCard(filled));
+      else if (state.tab === "wathelpt") viewEl.appendChild(stressDeltaCard(filled));
       else if (state.tab === "notities") viewEl.appendChild(renderNotesCard(filled));
       else if (state.tab === "gschema") viewEl.appendChild(renderGschemaCard());
     }
