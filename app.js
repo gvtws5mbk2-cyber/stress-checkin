@@ -370,6 +370,22 @@
     });
   }
 
+  // Vervangt het bestaande blok voor dit tijdvak, of null als het kopje niet bestaat.
+  // Nodig omdat een meting opnieuw ingevuld kan worden (bijv. na per ongeluk overslaan).
+  function replaceBlock(content, slot, newBlock) {
+    var lines = content.split("\n");
+    var startIdx = -1;
+    var endIdx = lines.length;
+    for (var i = 0; i < lines.length; i++) {
+      if (startIdx === -1 && lines[i].trim() === "## " + slot) { startIdx = i; continue; }
+      if (startIdx !== -1 && /^## /.test(lines[i].trim())) { endIdx = i; break; }
+    }
+    if (startIdx === -1) return null;
+    var before = lines.slice(0, startIdx).join("\n").replace(/\s+$/, "");
+    var after = lines.slice(endIdx).join("\n").replace(/^\s+/, "");
+    return before + "\n\n" + newBlock + (after ? "\n\n" + after : "");
+  }
+
   function syncOneDate(cfg, dateKey, slots) {
     var path = "metingen-" + dateKey + ".md";
     return ghGetFile(cfg, path).then(function (file) {
@@ -378,14 +394,15 @@
       slots.forEach(function (slot) {
         var entry = getEntry(dateKey, slot);
         if (!entry) return;
-        var heading = "## " + slot;
-        if (new RegExp("^" + heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", "m").test(content)) {
-          entry.synced = true;
-          setEntry(dateKey, slot, entry);
-          return;
+        var newBlock = buildBlock(slot, entry);
+        var replaced = replaceBlock(content, slot, newBlock);
+        if (replaced === null) {
+          content += "\n\n" + newBlock;
+          changed = true;
+        } else if (replaced !== content) {
+          content = replaced;
+          changed = true;
         }
-        content += "\n\n" + buildBlock(slot, entry);
-        changed = true;
         entry.synced = true;
         setEntry(dateKey, slot, entry);
       });
@@ -922,5 +939,5 @@
   document.addEventListener("DOMContentLoaded", init);
 
   // expose for manual testing in console
-  window.__stressApp = { buildFullDayMarkdown: buildFullDayMarkdown, buildBlock: buildBlock, buildHeader: buildHeader };
+  window.__stressApp = { buildFullDayMarkdown: buildFullDayMarkdown, buildBlock: buildBlock, buildHeader: buildHeader, replaceBlock: replaceBlock };
 })();
