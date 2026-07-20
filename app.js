@@ -342,30 +342,40 @@
 
   function syncOneGschemaDate(cfg, dateKey) {
     var path = "gschema-" + dateKey + ".md";
-    var allData = loadGschemaData();
-    var pending = allData.filter(function (e) { return e.dateKey === dateKey && !e.synced; });
+    var pending = loadGschemaData().filter(function (e) { return e.dateKey === dateKey && !e.synced; });
     if (!pending.length) return Promise.resolve();
+    var syncedIds = pending.map(function (e) { return e.id || e.timestamp; });
+
+    // Markeer entries pas als 'synced' NA een geslaagde upload. Zo blijft een
+    // G-schema in de wachtrij als iOS de app onderbreekt tijdens het uploaden.
+    function markSynced() {
+      var all = loadGschemaData();
+      all.forEach(function (e) {
+        if (syncedIds.indexOf(e.id || e.timestamp) !== -1) e.synced = true;
+      });
+      saveGschemaData(all);
+    }
+
     return ghGetFile(cfg, path).then(function (file) {
       var content = file.exists ? file.content.replace(/\s+$/, "") : "# G-schema " + dateKey;
       var changed = false;
       pending.forEach(function (entry) {
         var d = new Date(entry.timestamp);
         var timeStr = pad(d.getHours()) + ":" + pad(d.getMinutes());
-        var heading = "## " + timeStr;
-        if (new RegExp("^" + heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", "m").test(content)) {
-          entry.synced = true;
-          return;
+        var newBlock = buildGschemaBlock(entry);
+        var replaced = replaceBlock(content, timeStr, newBlock);
+        if (replaced === null) {
+          content += "\n\n" + newBlock;
+          changed = true;
+        } else if (replaced !== content) {
+          content = replaced;
+          changed = true;
         }
-        content += "\n\n" + buildGschemaBlock(entry);
-        changed = true;
-        entry.synced = true;
       });
-      saveGschemaData(allData);
-      if (!changed) return Promise.resolve();
-      return ghPutFile(cfg, path, content + "\n", file.sha, "G-schema " + dateKey);
+      if (!changed) { markSynced(); return Promise.resolve(); }
+      return ghPutFile(cfg, path, content + "\n", file.sha, "G-schema " + dateKey).then(markSynced);
     }).catch(function (err) {
-      pending.forEach(function (entry) { entry.synced = false; });
-      saveGschemaData(allData);
+      // niets als synced gemarkeerd; blijft in de wachtrij voor een nieuwe poging
       throw err;
     });
   }
@@ -388,6 +398,16 @@
 
   function syncOneDate(cfg, dateKey, slots) {
     var path = "metingen-" + dateKey + ".md";
+
+    // Markeer metingen pas als 'synced' NA een geslaagde upload, zodat een
+    // door iOS onderbroken upload de meting niet ten onrechte als klaar merkt.
+    function markSynced() {
+      slots.forEach(function (slot) {
+        var entry = getEntry(dateKey, slot);
+        if (entry) { entry.synced = true; setEntry(dateKey, slot, entry); }
+      });
+    }
+
     return ghGetFile(cfg, path).then(function (file) {
       var content = file.exists ? file.content.replace(/\s+$/, "") : buildHeader(dateKey);
       var changed = false;
@@ -403,19 +423,10 @@
           content = replaced;
           changed = true;
         }
-        entry.synced = true;
-        setEntry(dateKey, slot, entry);
       });
-      if (!changed) return Promise.resolve();
+      if (!changed) { markSynced(); return Promise.resolve(); }
       var msg = "Meting(en) " + dateKey + ": " + slots.join(", ");
-      return ghPutFile(cfg, path, content + "\n", file.sha, msg);
-    }).catch(function (err) {
-      // mark these entries as not synced again so they retry later
-      slots.forEach(function (slot) {
-        var entry = getEntry(dateKey, slot);
-        if (entry) { entry.synced = false; setEntry(dateKey, slot, entry); }
-      });
-      throw err;
+      return ghPutFile(cfg, path, content + "\n", file.sha, msg).then(markSynced);
     });
   }
 
