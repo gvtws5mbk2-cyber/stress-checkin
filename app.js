@@ -205,16 +205,27 @@
 
   var syncState = { status: "idle", message: "" }; // idle | pending | syncing | synced | error
 
-  function pendingCount() {
+  function pendingBreakdown() {
     var data = loadData();
-    var n = 0;
+    var metingen = 0;
     Object.keys(data).forEach(function (dk) {
       Object.keys(data[dk]).forEach(function (slot) {
-        if (!data[dk][slot].synced) n++;
+        if (!data[dk][slot].synced) metingen++;
       });
     });
-    n += loadGschemaData().filter(function (e) { return !e.synced; }).length;
-    return n;
+    var gschema = loadGschemaData().filter(function (e) { return !e.synced; }).length;
+    return { metingen: metingen, gschema: gschema, total: metingen + gschema };
+  }
+
+  function pendingCount() {
+    return pendingBreakdown().total;
+  }
+
+  function pendingLabel(b) {
+    var parts = [];
+    if (b.metingen) parts.push(b.metingen + (b.metingen > 1 ? " metingen" : " meting"));
+    if (b.gschema) parts.push(b.gschema + (b.gschema > 1 ? " G-schema's" : " G-schema"));
+    return parts.join(" en ");
   }
 
   function updateStatusDot() {
@@ -310,6 +321,7 @@
     if (!dateKeys.length && !gDateKeys.length) {
       syncState.status = "synced";
       updateSyncBadge();
+      if (state.view === "home") renderView();
       return Promise.resolve();
     }
     syncing = true;
@@ -336,7 +348,7 @@
       .then(function () {
         syncing = false;
         updateSyncBadge();
-        if (state.view === "settings" || state.view === "confirm" || state.view === "gschema-confirm") renderView();
+        if (state.view === "home" || state.view === "settings" || state.view === "confirm" || state.view === "gschema-confirm") renderView();
       });
   }
 
@@ -481,11 +493,47 @@
     return { open: "Nu invullen", future: "Nog niet aan de beurt", done: "Ingevuld", skipped: "Overgeslagen" }[status];
   }
 
+  function renderSyncBanner() {
+    var cfg = loadConfig();
+    var b = pendingBreakdown();
+
+    if (!cfg.token) {
+      if (b.total === 0) return null;
+      return h("div", { class: "sync-banner warn" }, [
+        h("p", { class: "sync-banner-text" }, ["⚙️ GitHub-sync staat niet aan — " + pendingLabel(b) + " staan alleen op dit toestel."]),
+        h("button", { class: "sync-banner-btn", onclick: function () { state.view = "settings"; renderView(); } }, ["Instellen"])
+      ]);
+    }
+    if (syncState.status === "syncing") {
+      return h("div", { class: "sync-banner busy" }, [
+        h("p", { class: "sync-banner-text" }, ["⏳ Bezig met opslaan naar GitHub…"])
+      ]);
+    }
+    if (syncState.status === "error") {
+      return h("div", { class: "sync-banner error" }, [
+        h("p", { class: "sync-banner-text" }, ["⚠️ Opslaan naar GitHub mislukt — " + pendingLabel(b) + " nog niet veilig. Je data blijft op dit toestel en wordt automatisch opnieuw geprobeerd."]),
+        h("button", { class: "sync-banner-btn", onclick: function () { processSyncQueue(); } }, ["Nu opnieuw"])
+      ]);
+    }
+    if (b.total > 0) {
+      return h("div", { class: "sync-banner warn" }, [
+        h("p", { class: "sync-banner-text" }, ["⏳ " + pendingLabel(b) + " nog niet opgeslagen op GitHub. Houd de app even open."]),
+        h("button", { class: "sync-banner-btn", onclick: function () { processSyncQueue(); } }, ["Nu opslaan"])
+      ]);
+    }
+    return h("div", { class: "sync-banner ok" }, [
+      h("p", { class: "sync-banner-text" }, ["✅ Alles veilig opgeslagen op GitHub."])
+    ]);
+  }
+
   function renderHome() {
     var dk = todayKey();
     var next = nextOpenSlot(dk);
     var wrap = h("div", {}, []);
     wrap.appendChild(h("p", { class: "date-title" }, [todayShortLabel()]));
+
+    var banner = renderSyncBanner();
+    if (banner) wrap.appendChild(banner);
 
     var list = h("div", { class: "slot-list" }, []);
     SLOTS.forEach(function (slot) {
@@ -933,6 +981,12 @@
     renderView();
     processSyncQueue();
     window.addEventListener("online", processSyncQueue);
+    // Sync bij elke terugkeer naar de app (bv. na het wegleggen van de telefoon)
+    // en een laatste poging bij het verlaten — zo raakt niets stil in de wachtrij.
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") processSyncQueue();
+    });
+    window.addEventListener("pagehide", function () { processSyncQueue(); });
     setInterval(processSyncQueue, 60000);
     setInterval(function () { if (state.view === "home") renderView(); }, 30000);
 
